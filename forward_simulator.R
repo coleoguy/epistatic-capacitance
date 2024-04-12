@@ -1,5 +1,12 @@
 # heading
 
+
+
+#package to look at 
+https://search.r-project.org/CRAN/refmans/simcross/html/sim_meiosis.html
+
+
+
 N <- 10 #population
 loci <- 100 #positions on the genome 
 mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
