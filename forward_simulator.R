@@ -1,4 +1,4 @@
-
+# heading
 
 N <- 10 #population
 loci <- 100 #positions on the genome 
