@@ -58,7 +58,9 @@ MutatePop <- function(pop, mu){
   
 
 }
-  
+
+
+# A: Let's keep pick parents as a random sampling and not worry about fitness yet
 PickParents <- function(pop){
 
   parents <- sample(1:nrow(pop), size = N, replace = TRUE, prob = )
@@ -70,4 +72,44 @@ PickParents <- function(pop){
 
 gametes 
 }
+
+#### TODO #A:
+## Finish MutatePop
+# Let's get it to a point were we can start a population and change
+# some of their genomes
+#
+## Start GetGametes
+# This steps comes after we have picked parents to mate, since we only make
+# one "successfull" gamete for each time a parent mates.
+# There's a some moving pieces that need to work in this step:
+# 1) We need to select at which point recombination will happen, preferably
+#    having a different random recombination spot for each parent
+# 2) We need to select one strand to start making a gamete and a method to 
+#    switch strand after the recombination spot
+# 3) We need to actually create the gametes, which should contain 0 and 1 as
+#    as their genotype, with values taken from the parent genotype dependent
+#    on the strand and recombination spot
+#
+## Fertilization
+# Since we should have twice as many gametes, we need to pick two random gametes
+# and have them go trough a compressing step that will take the gametes from 0,1
+# genotypes with two row to a 1-4 genotype on a single row. This step results
+# in the next generation's initial population
+#
+#
+#### This are the steps required to get a population that can complete
+#### it's life cycle and change will happen due to drift and mutations.
+#### The steps bellow will allow us to apply selection to our population
+#### But if you finish all the steps above we should meet before we start
+#### working on them.
+#
+#
+## GetPhenotype Function
+# This requires mapping the genotype to some phenotype (let's not worry about this one yet)
+#
+## GetFitness Function
+# This requires a phenotype that will be compared to an optimum. Should also record population's mean fitness
+#
+# After this we will add the steps specific to our study (measuring epi and add
+# variance, making an optimum shift, creating a bottleneck, etc.)
 
