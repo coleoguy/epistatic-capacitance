@@ -1,8 +1,11 @@
-# heading
+## Zoya .... (add info: name, email)
+## Andres Barboza P. andresdbp@tamu.edu
+## April 12, 2024
 
 
 
-#package to look at 
+#package to look at - will let you know if I can get it to work, for now
+#let's code our own solutions
 https://search.r-project.org/CRAN/refmans/simcross/html/sim_meiosis.html
 
 
@@ -34,6 +37,8 @@ pop <- GetPopulation(N=N,loci=loci)
 MutatePop <- function(pop, mu){
   mut.prob <- 1-(1-mu)^1547 # 1547 is the number of base pairs in the coding region of our genome (treating it as the length of a gene)
   mutants <- rbinom(n=nrow(pop), size=ncol(pop), mut.prob)
+  # I will turn into an sapply after the steps bellow are working correctly
+  # If you want to turn them into fucntions that would also be great
   for(i in 1:nrow(pop)){
     if(mutants[i] > 0){
       hit <- sample(2:ncol(pop), size=mutants[i], replace=F)
@@ -50,7 +55,7 @@ MutatePop <- function(pop, mu){
         
         #select columns where the change of drawing a column is equal to the mut.prob
         #change genotype at selected location
-        #repeat proccess for each individual               
+        #repeat process for each individual               
                
       }
     }
