@@ -1,12 +1,12 @@
-## Zoya .... (add info: name, email)
+## Zoya Wani zoyawani1@tamu.edu
 ## Andres Barboza P. andresdbp@tamu.edu
-## April 12, 2024
+## April 16, 2024
 
 
 
 #package to look at - will let you know if I can get it to work, for now
 #let's code our own solutions
-https://search.r-project.org/CRAN/refmans/simcross/html/sim_meiosis.html
+#https://search.r-project.org/CRAN/refmans/simcross/html/sim_meiosis.html
 
 
 
@@ -36,52 +36,61 @@ pop <- GetPopulation(N=N,loci=loci)
 
 MutatePop <- function(pop, mu){
   mut.prob <- 1-(1-mu)^1547 # 1547 is the number of base pairs in the coding region of our genome (treating it as the length of a gene)
-  mutants <- rbinom(n=nrow(pop), size=ncol(pop), mut.prob)
-  # I will turn into an sapply after the steps bellow are working correctly
-  # If you want to turn them into fucntions that would also be great
-  for(i in 1:nrow(pop)){
-    if(mutants[i] > 0){
-      hit <- sample(2:ncol(pop), size=mutants[i], replace=F)
-      for(j in 1:length(hit)){
-        switch(hit[j],
-               sample(c(2,3), 1),  #for 1
-               sample(c(1,4), 1),  #for 2
-               sample(c(1,4), 1),  #for 3
-               sample(c(2,3), 1))  #for 4
-      
-              
-        return(hit[j])
-               
-        
-        #select columns where the change of drawing a column is equal to the mut.prob
-        #change genotype at selected location
-        #repeat process for each individual               
-               
-      }
+  mut.coord <- which(matrix(runif(nrow(pop) * ncol(pop)), nrow = nrow(pop), ncol = ncol(pop)) < mut.prob, arr.ind = TRUE)
+  apply_switch <- function(pop, coordinates) {
+    # Create a function to apply the switch statement to a single element
+    apply_switch_single <- function(row_index, col_index) {
+      value <- pop[row_index, col_index]
+      pop[row_index, col_index] <- switch(value,
+                                          sample(c(2,3), 1),  #for 1
+                                          sample(c(1,4), 1),  #for 2
+                                          sample(c(1,4), 1),  #for 3
+                                          sample(c(2,3), 1))  #for 4
+      return(pop[row_index, col_index])  # return the updated value
     }
+    # Apply the function to each row of coordinates and collect results
+    updated_values <- mapply(apply_switch_single, coordinates[,1], coordinates[,2])
+    # Update the pop matrix with the updated values
+    pop[coordinates] <- updated_values
+    
+    return(pop)
   }
+  mutants <- apply_switch(pop, mut.coord)
   
-
+  return(mutants)
 }
 
 
-# A: Let's keep pick parents as a random sampling and not worry about fitness yet
 PickParents <- function(pop){
 
-  parents <- sample(1:nrow(pop), size = N, replace = TRUE, prob = )
-  return (parents)
+  father <- sample(1:(as.numeric(nrow(pop))/2), size = 10, replace = T)
+  
+  mother <- sample((as.numeric(nrow(pop)/2+1)):nrow(pop), size = 10, replace = T)
 
+  return(list(father,mother))
+
+}
+
+
+GetGametes <- function(parents,pop){
+  pop_rows <- c(father)
+  selected_father_table <- table(pop_rows )
+  
+  #matrix or table
+  #selected_father_matix <- matrix(data=pop,nrow=pop[c(father)],ncol=ncol)
+  #selected_row <- pop[pop_rows, ]
+  #print(selected_row)
+    
+  }
+ 
+  
 
 
   
 
-gametes 
-}
+
 
 #### TODO #A:
-## Finish MutatePop
-# Let's get it to a point were we can start a population and change
-# some of their genomes
 #
 ## Start GetGametes
 # This steps comes after we have picked parents to mate, since we only make
