@@ -8,12 +8,16 @@
 #let's code our own solutions
 #https://search.r-project.org/CRAN/refmans/simcross/html/sim_meiosis.html
 
-
-
-N <- 10 #population
+###### Starting Conditions #########
+N <- 1000 #population
 loci <- 100 #positions on the genome 
 mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
+baseval <- 10 # this is a base minimum value for our phenotype
+loci.imp <- sort(sample(2:loci, 10))
+###### End Starting Conditions #########
 
+
+###### FUNCTIONS #########
 GetPopulation <- function(N,loci){
   
   # The numbers present in the matrix represent the genotype at a locus. 
@@ -22,21 +26,30 @@ GetPopulation <- function(N,loci){
   # 0,1 = 2
   # 1,0 = 3
   # 1,1 = 4
-  
-  pop <- matrix(1, N, loci)
+  tot.loci <- N*loci
+  pop <- matrix(sample(1:4, tot.loci, replace=T), N, loci)
+  #set as female
+  pop[1:(N/2),1] <- 1
+  # set half as male
   pop[(N/2 + 1):N,1] <- 2
-  # first column is sex determining locus with 1=X 2=Y 
-  
+  # first column is sex determining locus with 1=XX 2=XY 
+  # remaining columns are the rest of the genome
+  # each row in pop is one individual
   return(pop)
   
 }
 
-
-pop <- GetPopulation(N=N,loci=loci)
-
+# TODO We need to determine if this is giving us what we want with regard to the 
+# number of mutations being entered into the population.
 MutatePop <- function(pop, mu){
+  # TODO add a comment that explains what this is the probability of a 
+  # mutation at any given locus the probability of an individual having one 
+  # mutation the average number of mutations per an individual?
   mut.prob <- 1-(1-mu)^1547 # 1547 is the number of base pairs in the coding region of our genome (treating it as the length of a gene)
+  # TODO add a comment that explains what this does.
   mut.coord <- which(matrix(runif(nrow(pop) * ncol(pop)), nrow = nrow(pop), ncol = ncol(pop)) < mut.prob, arr.ind = TRUE)
+  
+  # This switch function applies the mutations as they are produced
   apply_switch <- function(pop, coordinates) {
     # Create a function to apply the switch statement to a single element
     apply_switch_single <- function(row_index, col_index) {
@@ -48,16 +61,31 @@ MutatePop <- function(pop, mu){
                                           sample(c(2,3), 1))  #for 4
       return(pop[row_index, col_index])  # return the updated value
     }
-    # Apply the function to each row of coordinates and collect results
+    # Apply the switch function to each row of coordinates and collect results
     updated_values <- mapply(apply_switch_single, coordinates[,1], coordinates[,2])
     # Update the pop matrix with the updated values
     pop[coordinates] <- updated_values
     
     return(pop)
   }
+
   mutants <- apply_switch(pop, mut.coord)
-  
   return(mutants)
+}
+
+GetPheno <- function(pop, loci.imp, baseval){
+  temppop <- pop[,loci.imp]
+  temppop[temppop==1] <- 0
+  temppop[temppop %in% c(2, 3)] <- 1
+  temppop[temppop == 4] <- 2
+  phenos <- rowSums(temppop) + baseval
+  return(phenos)
+}
+
+GetFit <- function(phenos, optimum){
+  #TODO some code that creates fitness scores on a scale of 0 to 1
+  # based on distance from the optimum
+  return(w)
 }
 
 
@@ -85,9 +113,14 @@ GetGametes <- function(parents,pop){
  
   
 
+###### END FUNCTIONS #########
 
-  
 
+###### Running Sims ##########
+pop <- GetPopulation(N = N, loci = loci)
+pop2 <- MutatePop(pop = pop, mu = mu)
+phenos <- GetPheno(pop = pop, loci.imp = loci.imp, baseval = baseval)
+###### Running Sims ##########
 
 
 #### TODO #A:
