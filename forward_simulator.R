@@ -10,7 +10,7 @@ loci <- 100 #positions on the genome
 mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
 baseval <- 10 # this is a base minimum value for our phenotype
 loci.imp <- sort(sample(2:loci, 10))
-opt <- 10
+opt <- 15
 ###### End Starting Conditions #########
 
 
@@ -79,25 +79,16 @@ GetPheno <- function(pop, loci.imp, baseval){
   return(phenos)
 }
 
-  
-obs <- phenos
-
 GetFit <- function(obs, opt, sigma){
   numer <- (obs - opt)^2
   denom <- (2 * sigma)^2
   w <- exp(-(numer / denom))
   return(w)
   }
-  
-w <- GetFit(obs=obs, opt=opt, sigma=sigma)
-  plot(w~obs)
-  
-  
-  
-
 
 PickParents <- function(pop){
-
+# TODO add in a probability for each parent
+  # you will need to split up the fitnesses for fathers and mothers
   father <- sample(1:(as.numeric(nrow(pop))/2), size = 10, replace = T)
   
   mother <- sample((as.numeric(nrow(pop)/2+1)):nrow(pop), size = 10, replace = T)
@@ -106,23 +97,28 @@ PickParents <- function(pop){
 
 }
 
-
-GetGametes <- function(parents,pop){
-  pop_rows <- c(father)
-  selected_father_table <- table(pop_rows )
+GetGametes <- function(parent){
+  # TODO go from a parent genome vector
+  # to a gamete genome vector
   
-
+  
   }
  
-  
-
 ###### END FUNCTIONS #########
+
 
 
 ###### Running Sims ##########
 pop <- GetPopulation(N = N, loci = loci)
 pop2 <- MutatePop(pop = pop, mu = mu)
 phenos <- GetPheno(pop = pop, loci.imp = loci.imp, baseval = baseval)
+w <- GetFit(obs=phenos, opt=opt, sigma=2)
+
+
+
+
+
+
 ###### Running Sims ##########
 
 
