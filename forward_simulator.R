@@ -4,16 +4,13 @@
 
 
 
-#package to look at - will let you know if I can get it to work, for now
-#let's code our own solutions
-#https://search.r-project.org/CRAN/refmans/simcross/html/sim_meiosis.html
-
 ###### Starting Conditions #########
 N <- 1000 #population
 loci <- 100 #positions on the genome 
 mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
 baseval <- 10 # this is a base minimum value for our phenotype
 loci.imp <- sort(sample(2:loci, 10))
+opt <- 10
 ###### End Starting Conditions #########
 
 
@@ -50,7 +47,7 @@ MutatePop <- function(pop, mu){
   mut.coord <- which(matrix(runif(nrow(pop) * ncol(pop)), nrow = nrow(pop), ncol = ncol(pop)) < mut.prob, arr.ind = TRUE)
   
   # This switch function applies the mutations as they are produced
-  apply_switch <- function(pop, coordinates) {
+  apply_mutations <- function(pop, coordinates) {
     # Create a function to apply the switch statement to a single element
     apply_switch_single <- function(row_index, col_index) {
       value <- pop[row_index, col_index]
@@ -82,11 +79,21 @@ GetPheno <- function(pop, loci.imp, baseval){
   return(phenos)
 }
 
-GetFit <- function(phenos, optimum){
-  #TODO some code that creates fitness scores on a scale of 0 to 1
-  # based on distance from the optimum
+  
+obs <- phenos
+
+GetFit <- function(obs, opt, sigma){
+  numer <- (obs - opt)^2
+  denom <- (2 * sigma)^2
+  w <- exp(-(numer / denom))
   return(w)
-}
+  }
+  
+w <- GetFit(obs=obs, opt=opt, sigma=sigma)
+  plot(w~obs)
+  
+  
+  
 
 
 PickParents <- function(pop){
@@ -104,11 +111,7 @@ GetGametes <- function(parents,pop){
   pop_rows <- c(father)
   selected_father_table <- table(pop_rows )
   
-  #matrix or table
-  #selected_father_matix <- matrix(data=pop,nrow=pop[c(father)],ncol=ncol)
-  #selected_row <- pop[pop_rows, ]
-  #print(selected_row)
-    
+
   }
  
   
