@@ -96,11 +96,19 @@ PickParents <- function(pop){
   return(list(father,mother))
 
 }
+<<<<<<< Updated upstream
 
 GetGametes <- function(parent){
   # TODO go from a parent genome vector
   # to a gamete genome vector
   
+=======
+#what fitness are we using to pick parents 
+
+GetGametes <- function(parents,pop){
+  pop_rows <- c(father)
+  selected_father_table <- table(pop_rows )
+>>>>>>> Stashed changes
   
   }
  
@@ -123,7 +131,7 @@ w <- GetFit(obs=phenos, opt=opt, sigma=2)
 
 
 #### TODO #A:
-#
+
 ## Start GetGametes
 # This steps comes after we have picked parents to mate, since we only make
 # one "successfull" gamete for each time a parent mates.
