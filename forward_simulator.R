@@ -11,6 +11,7 @@ mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
 baseval <- 10 # this is a base minimum value for our phenotype
 loci.imp <- sort(sample(2:loci, 10))
 opt <- 15
+pick_parent <- 100
 ###### End Starting Conditions #########
 
 
@@ -87,33 +88,43 @@ GetFit <- function(obs, opt, sigma){
   }
 
 PickParents <- function(pop){
-# TODO add in a probability for each parent
-  # you will need to split up the fitnesses for fathers and mothers
-  father <- sample(1:(as.numeric(nrow(pop))/2), size = 10, replace = T)
+  mother <- c()
+  father <- c()
   
-  mother <- sample((as.numeric(nrow(pop)/2+1)):nrow(pop), size = 10, replace = T)
+  selected_parents <- sample(length(w), size = pick_parent, replace = F, prob = w  )
+  for (i in 1:length(selected_parents)){
+    if(selected_parents[i] < 500) {
+      mother <- c(mother, selected_parents[i])
+    } else { 
+      father <- c(father, selected_parents[i])
+    }
+  }
+    
+    
+    
+    
+  }
 
-  return(list(father,mother))
+  
+return(mother,father)
 
-}
-<<<<<<< Updated upstream
+
 
 GetGametes <- function(parent){
-  # TODO go from a parent genome vector
-  # to a gamete genome vector
+ for (i in mother){
+   for each point
+   sapply(
+     sample(c(0), 1),  #for 1
+     sample(c(1,0), 1),  #for 2
+     sample(c(0,1), 1),  #for 3
+     sample(c(1), 1))  #for 4
+   )
+ }
   
-=======
-#what fitness are we using to pick parents 
-
-GetGametes <- function(parents,pop){
-  pop_rows <- c(father)
-  selected_father_table <- table(pop_rows )
->>>>>>> Stashed changes
   
   }
  
 ###### END FUNCTIONS #########
-
 
 
 ###### Running Sims ##########
@@ -122,16 +133,13 @@ pop2 <- MutatePop(pop = pop, mu = mu)
 phenos <- GetPheno(pop = pop, loci.imp = loci.imp, baseval = baseval)
 w <- GetFit(obs=phenos, opt=opt, sigma=2)
 
-
-
-
-
-
 ###### Running Sims ##########
 
 
-#### TODO #A:
 
+
+#### TODO #A:
+#
 ## Start GetGametes
 # This steps comes after we have picked parents to mate, since we only make
 # one "successfull" gamete for each time a parent mates.
