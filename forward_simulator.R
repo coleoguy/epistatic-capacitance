@@ -16,6 +16,29 @@ pick_parent <- 100
 
 
 ###### FUNCTIONS #########
+
+# Helper Functions #
+apply_switch <- function(pop, coordinates) {
+  # Create a function to apply the switch statement to a single element
+  apply_switch_single <- function(row_index, col_index) {
+    value <- pop[row_index, col_index]
+    pop[row_index, col_index] <- switch(value,
+                                        sample(c(2,3), 1),  #for 1
+                                        sample(c(1,4), 1),  #for 2
+                                        sample(c(1,4), 1),  #for 3
+                                        sample(c(2,3), 1))  #for 4
+    return(pop[row_index, col_index])  # return the updated value
+  }
+  # Apply the function to each row of coordinates and collect results
+  updated_values <- mapply(apply_switch_single, coordinates[,1], coordinates[,2])
+  # Update the pop matrix with the updated values
+  pop[coordinates] <- updated_values
+  
+  return(pop)
+}
+# End of Helper Functions #
+
+
 GetPopulation <- function(N,loci){
   
   # The numbers present in the matrix represent the genotype at a locus. 
@@ -90,7 +113,6 @@ GetFit <- function(obs, opt, sigma){
 PickParents <- function(pop){
   mother <- c()
   father <- c()
-  
   selected_parents <- sample(length(w), size = pick_parent, replace = F, prob = w  )
   for (i in 1:length(selected_parents)){
     if(selected_parents[i] < 500) {
@@ -99,16 +121,8 @@ PickParents <- function(pop){
       father <- c(father, selected_parents[i])
     }
   }
-    
-    
-    
-    
-  }
-
-  
-return(mother,father)
-
-
+  return(mother,father)
+}
 
 GetGametes <- function(parent){
  for (i in mother){
@@ -123,6 +137,8 @@ GetGametes <- function(parent){
   
   
   }
+
+
  
 ###### END FUNCTIONS #########
 
