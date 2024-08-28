@@ -150,6 +150,9 @@ pop <- GetPopulation(N = N, loci = loci)
 pop2 <- MutatePop(pop = pop, mu = mu)
 phenos <- GetPheno(pop = pop, loci.imp = loci.imp, baseval = baseval)
 w <- GetFit(obs=phenos, opt=opt, sigma=2)
+# TODO try to pick parents with the function weve written
+
+# TODO start wokring on the get gametes function
 
 ###### Running Sims ##########
 
