@@ -2,8 +2,6 @@
 ## Andres Barboza P. andresdbp@tamu.edu
 ## April 16, 2024
 
-
-
 ###### Starting Conditions #########
 N <- 1000 #population
 loci <- 100 #positions on the genome 
@@ -11,13 +9,14 @@ mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
 baseval <- 10 # this is a base minimum value for our phenotype
 loci.imp <- sort(sample(2:loci, 10))
 opt <- 15
-pick_parent <- 100
 ###### End Starting Conditions #########
 
 
 ###### FUNCTIONS #########
 
 # Helper Functions #
+# TODO Try commenting out this function and then go to line 94 and change
+# using the apply_mutation function instead
 apply_switch <- function(pop, coordinates) {
   # Create a function to apply the switch statement to a single element
   apply_switch_single <- function(row_index, col_index) {
@@ -33,7 +32,6 @@ apply_switch <- function(pop, coordinates) {
   updated_values <- mapply(apply_switch_single, coordinates[,1], coordinates[,2])
   # Update the pop matrix with the updated values
   pop[coordinates] <- updated_values
-  
   return(pop)
 }
 
@@ -113,47 +111,26 @@ GetFit <- function(obs, opt, sigma){
   }
 
 PickParents <- function(pop, w){
-  mother <- c()
-  father <- c()
-  selected_parents <- sample(length(w), size = 500, replace = FALSE, prob = w  )
- 
+
 }
 
-if (selected_parents[i] >= 500) {
-  father<-c (father, selected_parents[i]) 
-}else {
-  mother <- c(mother, selected_parents[i])
-}
 
-#randomly outputting 500 parents based on w values and then sorting them into two lists. 
-# mothers have values 1-500 and fathers 500-1000 in the population 
-
-
-GetGametes <- function(parent){
- for (i in mother){
-   for each point
-   sapply(
-     sample(c(0), 1),  #for 1
-     sample(c(1,0), 1),  #for 2
-     sample(c(0,1), 1),  #for 3
-     sample(c(1), 1))  #for 4
-   )
- }
-  
-  
-  }
-
-
+# 1) function simplification repettitve functions
+# 2) picking parents
  
 ###### END FUNCTIONS #########
 
 
 ###### Running Sims ##########
 pop <- GetPopulation(N = N, loci = loci)
-pop2 <- MutatePop(pop = pop, mu = mu)
+pop <- MutatePop(pop = pop, mu = mu)
 phenos <- GetPheno(pop = pop, loci.imp = loci.imp, baseval = baseval)
 w <- GetFit(obs=phenos, opt=opt, sigma=2)
-# TODO try to pick parents with the function weve written
+
+# TODO put this into a function up above and combine the two vectors
+# perhaps into a list of length 2
+mothers <- sample(1:(N/2), size = N, replace = T, prob = w[1:(N/2)])
+fathers <- sample((N/2 +1):N, size = N, replace = T, prob = w[(N/2 +1):N])
 
 # TODO start wokring on the get gametes function
 
