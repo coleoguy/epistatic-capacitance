@@ -112,19 +112,22 @@ GetFit <- function(obs, opt, sigma){
   return(w)
   }
 
-PickParents <- function(pop){
+PickParents <- function(pop, w){
   mother <- c()
   father <- c()
-  selected_parents <- sample(length(w), size = pick_parent, replace = F, prob = w  )
-  for (i in 1:length(selected_parents)){
-    if(selected_parents[i] < 500) {
-      mother <- c(mother, selected_parents[i])
-    } else { 
-      father <- c(father, selected_parents[i])
-    }
-  }
-  return(mother,father)
+  selected_parents <- sample(length(w), size = 500, replace = FALSE, prob = w  )
+ 
 }
+
+if (selected_parents[i] >= 500) {
+  father<-c (father, selected_parents[i]) 
+}else {
+  mother <- c(mother, selected_parents[i])
+}
+
+#randomly outputting 500 parents based on w values and then sorting them into two lists. 
+# mothers have values 1-500 and fathers 500-1000 in the population 
+
 
 GetGametes <- function(parent){
  for (i in mother){
