@@ -35,6 +35,7 @@ apply_switch <- function(pop, coordinates) {
   return(pop)
 }
 
+#This function is how we are carrying out mutations and updating them in the sample 
 # TODO add helper functin that converts diploid vector to haplotype
 # End of Helper Functions #
 
