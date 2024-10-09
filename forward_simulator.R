@@ -140,6 +140,38 @@ GetGametes <- function(mothers,fathers){
   
 }
 
+
+
+## DICTIONARY (LOOKUP) EXAMPLE
+if(single.arch == "add.x.dom"){
+  # compress the genome into vector of values 0-2, representing each genotype.
+  genvec <- colSums(genome)
+  # and it should produce a vector of 0, 1, 2 of length 20
+  # 00 = 0
+  # 01 = 1
+  # 10 = 1
+  # 11 = 2
+  
+  # compare the ith and i+10th values in vector, use switch function to 
+  # find opp value for each genotype pair (i.e., 0,0 = 0.125):
+  mlgen <- paste(genvec[1:10], genvec[11:20], sep = ",")
+  lookup <- c("0,0" = 0.125,
+              "0,1" = 0,
+              "1,0" = -0.25,
+              "1,1" = 0,
+              "2,2" = -0.125,
+              "2,1" = 0,
+              "1,2" = 0.25,
+              "2,0" = 0.125,
+              "0,2" = -0.125)
+  # this is the opportunity for addxdom to impact the phenotype 
+  # (for the whole genome)
+  opp <-mean(lookup[mlgen])
+  
+  # this next line calculates the phenotype for the addxdom trait
+  single.trait <- mu1 + opp * beta1
+}
+
 ###### END FUNCTIONS #########
 
 
