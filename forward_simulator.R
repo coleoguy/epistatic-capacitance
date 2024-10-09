@@ -142,6 +142,7 @@ GetGametes <- function(mothers,fathers){
 
 
 
+
 ## DICTIONARY (LOOKUP) EXAMPLE
 if(single.arch == "add.x.dom"){
   # compress the genome into vector of values 0-2, representing each genotype.
