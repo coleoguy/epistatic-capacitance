@@ -2,43 +2,22 @@
 ## Andres Barboza P. andresdbp@tamu.edu
 ## April 16, 2024
 
+
+
+
 ###### Starting Conditions #########
+
 N <- 1000 #population
 loci <- 100 #positions on the genome 
 mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
 baseval <- 10 # this is a base minimum value for our phenotype
 loci.imp <- sort(sample(2:loci, 10))
 opt <- 15
+
 ###### End Starting Conditions #########
 
 
 ###### FUNCTIONS #########
-
-# Helper Functions #
-# TODO Try commenting out this function and then go to line 94 and change
-# using the apply_mutation function instead
-apply_switch <- function(pop, coordinates) {
-  # Create a function to apply the switch statement to a single element
-  apply_switch_single <- function(row_index, col_index) {
-    value <- pop[row_index, col_index]
-    pop[row_index, col_index] <- switch(value,
-                                        sample(c(2,3), 1),  #for 1
-                                        sample(c(1,4), 1),  #for 2
-                                        sample(c(1,4), 1),  #for 3
-                                        sample(c(2,3), 1))  #for 4
-    return(pop[row_index, col_index])  # return the updated value
-  }
-  # Apply the function to each row of coordinates and collect results
-  updated_values <- mapply(apply_switch_single, coordinates[,1], coordinates[,2])
-  # Update the pop matrix with the updated values
-  pop[coordinates] <- updated_values
-  return(pop)
-}
-
-#This function is how we are carrying out mutations and updating them in the sample 
-# TODO add helper functin that converts diploid vector to haplotype
-# End of Helper Functions #
-
 
 GetPopulation <- function(N,loci){
   
@@ -61,9 +40,7 @@ GetPopulation <- function(N,loci){
   
 }
 
-# TODO We need to determine if this is giving us what we want with regard to the 
-# number of mutations being entered into the population.
-MutatePop <- function(pop, mu){
+#MutatePop <- function(pop, mu){
   # TODO add a comment that explains what this is the probability of a 
   # mutation at any given locus the probability of an individual having one 
   # mutation the average number of mutations per an individual?
@@ -91,7 +68,37 @@ MutatePop <- function(pop, mu){
     return(pop)
   }
 
-  mutants <- apply_switch(pop, mut.coord)
+  mutants <- apply_mutations(pop, mut.coord)
+  return(mutants)
+}
+
+MutatePop <- function(pop, mu) {
+  # Probability of an individual having at least one mutation
+  mut.prob <- 1 - (1 - mu)^1547  # 1547 is the number of base pairs in the coding region
+  
+  # Determine mutation coordinates where random values are less than mut.prob
+  mut.coord <- which(matrix(runif(nrow(pop) * ncol(pop)), 
+                            nrow = nrow(pop), ncol = ncol(pop)) < mut.prob, 
+                     arr.ind = TRUE)
+  
+  apply_mutations <- function(pop, coordinates) {
+    for (i in seq_len(nrow(coordinates))) {
+      row_index <- coordinates[i, 1]
+      col_index <- coordinates[i, 2]
+      value <- pop[row_index, col_index]
+      
+      # switches values 
+      pop[row_index, col_index] <- switch(value,
+                                          sample(c(2, 3), 1),  # for 1
+                                          sample(c(1, 4), 1),  # for 2
+                                          sample(c(1, 4), 1),  # for 3
+                                          sample(c(2, 3), 1))  # for 4
+    }
+    return(pop)
+  }
+  
+  # Apply mutations to the population matrix
+  mutants <- apply_mutations(pop, mut.coord)
   return(mutants)
 }
 
@@ -112,28 +119,39 @@ GetFit <- function(obs, opt, sigma){
   }
 
 PickParents <- function(pop, w){
-
+    
+    mothers <- sample(1:(N/2), size = N, replace = TRUE, prob = w[1:(N/2)])
+    fathers <- sample((N/2 + 1):N, size = N, replace = TRUE, prob = w[(N/2 + 1):N])
+    
+    return(list(mothers = mothers, fathers = fathers))
+  }
+  
+GetGametes <- function(mothers,fathers){
+ 
+   create_gamete <- function(mothers, fathers) {
+     
+    allele1 <- sample(mothers, 1)
+    allele2 <- sample(fathers, 1)
+    
+    return(c(allele1, allele2)) 
+  }
+  
+  
+  
 }
 
-
-# 1) function simplification repettitve functions
-# 2) picking parents
- 
 ###### END FUNCTIONS #########
 
 
 ###### Running Sims ##########
+
 pop <- GetPopulation(N = N, loci = loci)
 pop <- MutatePop(pop = pop, mu = mu)
 phenos <- GetPheno(pop = pop, loci.imp = loci.imp, baseval = baseval)
 w <- GetFit(obs=phenos, opt=opt, sigma=2)
-
-# TODO put this into a function up above and combine the two vectors
-# perhaps into a list of length 2
-mothers <- sample(1:(N/2), size = N, replace = T, prob = w[1:(N/2)])
-fathers <- sample((N/2 +1):N, size = N, replace = T, prob = w[(N/2 +1):N])
-
-# TODO start wokring on the get gametes function
+parents <- PickParents(pop,w)
+mothers <- parents$mothers
+fathers <- parents$fathers
 
 ###### Running Sims ##########
 
@@ -141,7 +159,10 @@ fathers <- sample((N/2 +1):N, size = N, replace = T, prob = w[(N/2 +1):N])
 
 
 #### TODO #A:
-#
+
+# TODO We need to determine if GeetPopulation is giving us what we want with regard to the 
+# number of mutations being entered into the population.
+  
 ## Start GetGametes
 # This steps comes after we have picked parents to mate, since we only make
 # one "successfull" gamete for each time a parent mates.
