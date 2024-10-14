@@ -40,38 +40,6 @@ GetPopulation <- function(N,loci){
   
 }
 
-#MutatePop <- function(pop, mu){
-  # TODO add a comment that explains what this is the probability of a 
-  # mutation at any given locus the probability of an individual having one 
-  # mutation the average number of mutations per an individual?
-  mut.prob <- 1-(1-mu)^1547 # 1547 is the number of base pairs in the coding region of our genome (treating it as the length of a gene)
-  # TODO add a comment that explains what this does.
-  mut.coord <- which(matrix(runif(nrow(pop) * ncol(pop)), nrow = nrow(pop), ncol = ncol(pop)) < mut.prob, arr.ind = TRUE)
-  
-  # This switch function applies the mutations as they are produced
-  apply_mutations <- function(pop, coordinates) {
-    # Create a function to apply the switch statement to a single element
-    apply_switch_single <- function(row_index, col_index) {
-      value <- pop[row_index, col_index]
-      pop[row_index, col_index] <- switch(value,
-                                          sample(c(2,3), 1),  #for 1
-                                          sample(c(1,4), 1),  #for 2
-                                          sample(c(1,4), 1),  #for 3
-                                          sample(c(2,3), 1))  #for 4
-      return(pop[row_index, col_index])  # return the updated value
-    }
-    # Apply the switch function to each row of coordinates and collect results
-    updated_values <- mapply(apply_switch_single, coordinates[,1], coordinates[,2])
-    # Update the pop matrix with the updated values
-    pop[coordinates] <- updated_values
-    
-    return(pop)
-  }
-
-  mutants <- apply_mutations(pop, mut.coord)
-  return(mutants)
-}
-
 MutatePop <- function(pop, mu) {
   # Probability of an individual having at least one mutation
   mut.prob <- 1 - (1 - mu)^1547  # 1547 is the number of base pairs in the coding region
