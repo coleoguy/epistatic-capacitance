@@ -95,21 +95,35 @@ PickParents <- function(pop, w){
   }
   
 GetGametes <- function(mothers,fathers){
- 
-   create_gamete <- function(mothers, fathers) {
-     
-    allele1 <- sample(mothers, 1)
-    allele2 <- sample(fathers, 1)
+  get_maternal_alleles <- function(pop,mothers){
+    genotype <- pop[mothers, ]
+    #get the individuals from pop that are mothers 
+    allele_1 <- numeric(length(genotype))
+    allele_2 <- numeric(length(genotype))
+    #create a vector for the two alleles 
+    allele_1 <- ifelse(genotype == 1, 0, 
+                ifelse(genotype == 2, 0, 
+                ifelse(genotype == 3, 1, 
+                ifelse(genotype == 4, 1, NA))))
     
-    return(c(allele1, allele2)) 
+    allele_2 <- ifelse(genotype == 1, 0, 
+                ifelse(genotype == 2, 1, 
+                ifelse(genotype == 3, 0, 
+                ifelse(genotype == 4, 1, NA))))
+    return(list(allele_1 = allele_1, allele_2 = allele_2))
+    
+    ### allele_1<- get_maternal_alleles(pop,mothers)
+    ### return(allele_1)
+    ### would need to do this for the fathers as well
+    
+    
+    
   }
-  
-  
+    
   
 }
-
-
-
+                    
+  
 
 ## DICTIONARY (LOOKUP) EXAMPLE
 if(single.arch == "add.x.dom"){
@@ -141,7 +155,13 @@ if(single.arch == "add.x.dom"){
   single.trait <- mu1 + opp * beta1
 }
 
-###### END FUNCTIONS #########
+
+
+
+
+###### END FUNCTIONS ########
+
+
 
 
 ###### Running Sims ##########
@@ -153,9 +173,10 @@ w <- GetFit(obs=phenos, opt=opt, sigma=2)
 parents <- PickParents(pop,w)
 mothers <- parents$mothers
 fathers <- parents$fathers
+allele_1<- get_maternal_alleles(pop,mothers)
+allele_2 <- get_maternal_alleles(pop,mothers)
 
 ###### Running Sims ##########
-
 
 
 
