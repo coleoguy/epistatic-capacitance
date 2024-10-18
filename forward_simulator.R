@@ -6,14 +6,12 @@
 
 
 ###### Starting Conditions #########
-
 N <- 1000 #population
 loci <- 100 #positions on the genome 
 mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
 baseval <- 10 # this is a base minimum value for our phenotype
 loci.imp <- sort(sample(2:loci, 10))
 opt <- 15
-
 ###### End Starting Conditions #########
 
 
@@ -94,7 +92,7 @@ PickParents <- function(pop, w){
     return(list(mothers = mothers, fathers = fathers))
   }
   
-GetGametes <- function(mothers,fathers){
+#GetGametes <- function(mothers,fathers){
   get_maternal_alleles <- function(pop,mothers){
     genotype <- pop[mothers, ]
     #get the individuals from pop that are mothers 
@@ -112,9 +110,7 @@ GetGametes <- function(mothers,fathers){
                 ifelse(genotype == 4, 1, NA))))
     return(list(allele_1 = allele_1, allele_2 = allele_2))
     
-    ### allele_1<- get_maternal_alleles(pop,mothers)
-    ### return(allele_1)
-    ### would need to do this for the fathers as well
+    
     
     
     
@@ -122,8 +118,77 @@ GetGametes <- function(mothers,fathers){
     
   
 }
-                    
+
+#new function
+GetGametes <- function(mothers, fathers, pop) {
+  genotype_lookup <- data.frame(
+    genotype = c(1, 2, 3, 4),
+    allele_1 = c(0, 0, 1, 1),
+    allele_2 = c(0, 1, 0, 1)
+  )
   
+  get_maternal_alleles <- function(pop, mothers) {
+    # Cqll the mothers and their genotypes
+    genotype <- pop[mothers, ]
+    
+  
+    matched_rows <- match(genotype, genotype_lookup$genotype)
+    # Match rows of the genotype to the genotypes in the table 
+    
+    # Get alleles that match rows 
+    allele_1 <- genotype_lookup$allele_1[matched_rows]
+    allele_2 <- genotype_lookup$allele_2[matched_rows]
+    
+    return(list(allele_1 = allele_1, allele_2 = allele_2))
+  }
+  
+  #same as mothers
+  get_paternal_alleles <- function(pop, fathers) {
+    # Get the genotypes of the fathers
+    genotype <- pop[fathers, ]
+    
+   
+    matched_rows <- match(genotype, genotype_lookup$genotype)
+    
+    # Extract alleles using the matched rows
+    allele_1 <- genotype_lookup$allele_1[matched_rows]
+    allele_2 <- genotype_lookup$allele_2[matched_rows]
+    
+    return(list(allele_1 = allele_1, allele_2 = allele_2))
+  }
+  
+  # Get maternal alleles
+  maternal_alleles <- get_maternal_alleles(pop, mothers)
+  
+  # Get paternal alleles
+  paternal_alleles <- get_paternal_alleles(pop, fathers)
+  
+  
+  return(list(
+    maternal_alleles = maternal_alleles,
+    paternal_alleles = paternal_alleles
+  ))
+}
+
+###### END FUNCTIONS ########
+
+
+
+
+###### Running Sims ##########
+pop <- GetPopulation(N = N, loci = loci)
+pop <- MutatePop(pop = pop, mu = mu)
+phenos <- GetPheno(pop = pop, loci.imp = loci.imp, baseval = baseval)
+w <- GetFit(obs=phenos, opt=opt, sigma=2)
+parents <- PickParents(pop,w)
+mothers <- parents$mothers
+fathers <- parents$fathers
+gametes <- GetGametes(mothers, fathers, pop)
+###### Running Sims ##########
+
+
+
+#### TODO #A:
 
 ## DICTIONARY (LOOKUP) EXAMPLE
 if(single.arch == "add.x.dom"){
@@ -155,32 +220,6 @@ if(single.arch == "add.x.dom"){
   single.trait <- mu1 + opp * beta1
 }
 
-
-
-
-
-###### END FUNCTIONS ########
-
-
-
-
-###### Running Sims ##########
-
-pop <- GetPopulation(N = N, loci = loci)
-pop <- MutatePop(pop = pop, mu = mu)
-phenos <- GetPheno(pop = pop, loci.imp = loci.imp, baseval = baseval)
-w <- GetFit(obs=phenos, opt=opt, sigma=2)
-parents <- PickParents(pop,w)
-mothers <- parents$mothers
-fathers <- parents$fathers
-allele_1<- get_maternal_alleles(pop,mothers)
-allele_2 <- get_maternal_alleles(pop,mothers)
-
-###### Running Sims ##########
-
-
-
-#### TODO #A:
 
 # TODO We need to determine if GeetPopulation is giving us what we want with regard to the 
 # number of mutations being entered into the population.
