@@ -6,11 +6,11 @@
 
 
 ###### Starting Conditions #########
-N <- 1000 #population
-loci <- 100 #positions on the genome 
+N <- 10 #population
+loci <- 10 #positions on the genome 
 mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
 baseval <- 10 # this is a base minimum value for our phenotype
-loci.imp <- sort(sample(2:loci, 10))
+loci.imp <- sort(sample(2:loci, loci/2))
 opt <- 15
 ###### End Starting Conditions #########
 
@@ -92,32 +92,32 @@ PickParents <- function(pop, w){
     return(list(mothers = mothers, fathers = fathers))
   }
   
-#GetGametes <- function(mothers,fathers){
-  get_maternal_alleles <- function(pop,mothers){
-    genotype <- pop[mothers, ]
-    #get the individuals from pop that are mothers 
-    allele_1 <- numeric(length(genotype))
-    allele_2 <- numeric(length(genotype))
-    #create a vector for the two alleles 
-    allele_1 <- ifelse(genotype == 1, 0, 
-                ifelse(genotype == 2, 0, 
-                ifelse(genotype == 3, 1, 
-                ifelse(genotype == 4, 1, NA))))
-    
-    allele_2 <- ifelse(genotype == 1, 0, 
-                ifelse(genotype == 2, 1, 
-                ifelse(genotype == 3, 0, 
-                ifelse(genotype == 4, 1, NA))))
-    return(list(allele_1 = allele_1, allele_2 = allele_2))
-    
-    
-    
-    
-    
-  }
-    
-  
-}
+# #GetGametes <- function(mothers,fathers){
+#   get_maternal_alleles <- function(pop,mothers){
+#     genotype <- pop[mothers, ]
+#     #get the individuals from pop that are mothers 
+#     allele_1 <- numeric(length(genotype))
+#     allele_2 <- numeric(length(genotype))
+#     #create a vector for the two alleles 
+#     allele_1 <- ifelse(genotype == 1, 0, 
+#                 ifelse(genotype == 2, 0, 
+#                 ifelse(genotype == 3, 1, 
+#                 ifelse(genotype == 4, 1, NA))))
+#     
+#     allele_2 <- ifelse(genotype == 1, 0, 
+#                 ifelse(genotype == 2, 1, 
+#                 ifelse(genotype == 3, 0, 
+#                 ifelse(genotype == 4, 1, NA))))
+#     return(list(allele_1 = allele_1, allele_2 = allele_2))
+#     
+#     
+#     
+#     
+#     
+#   }
+#     
+#   
+# }
 
 #new function
 GetGametes <- function(mothers, fathers, pop) {
@@ -170,6 +170,18 @@ GetGametes <- function(mothers, fathers, pop) {
   ))
 }
 
+MakeFertilization <- function(gamete1, gamete2){
+  
+  zygotes <- paste0(gamete1, "-", gamete2)
+  
+  genotype_lookup <- data.frame(
+    zygote = c("0-0", "0-1", "1-0", "1-1"),
+    genotype = c(1, 2, 3, 4)
+  )
+  
+  compressed_genotype <- genotype_lookup[zygotes]
+}
+
 ###### END FUNCTIONS ########
 
 
@@ -188,37 +200,7 @@ gametes <- GetGametes(mothers, fathers, pop)
 
 
 
-#### TODO #A:
 
-## DICTIONARY (LOOKUP) EXAMPLE
-if(single.arch == "add.x.dom"){
-  # compress the genome into vector of values 0-2, representing each genotype.
-  genvec <- colSums(genome)
-  # and it should produce a vector of 0, 1, 2 of length 20
-  # 00 = 0
-  # 01 = 1
-  # 10 = 1
-  # 11 = 2
-  
-  # compare the ith and i+10th values in vector, use switch function to 
-  # find opp value for each genotype pair (i.e., 0,0 = 0.125):
-  mlgen <- paste(genvec[1:10], genvec[11:20], sep = ",")
-  lookup <- c("0,0" = 0.125,
-              "0,1" = 0,
-              "1,0" = -0.25,
-              "1,1" = 0,
-              "2,2" = -0.125,
-              "2,1" = 0,
-              "1,2" = 0.25,
-              "2,0" = 0.125,
-              "0,2" = -0.125)
-  # this is the opportunity for addxdom to impact the phenotype 
-  # (for the whole genome)
-  opp <-mean(lookup[mlgen])
-  
-  # this next line calculates the phenotype for the addxdom trait
-  single.trait <- mu1 + opp * beta1
-}
 
 
 # TODO We need to determine if GeetPopulation is giving us what we want with regard to the 
