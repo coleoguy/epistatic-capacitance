@@ -12,6 +12,7 @@ mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
 baseval <- 10 # this is a base minimum value for our phenotype
 loci.imp <- sort(sample(2:loci, loci/2))
 opt <- 15
+iter <- 20
 ###### End Starting Conditions #########
 
 
@@ -170,16 +171,16 @@ GetGametes <- function(mothers, fathers, pop) {
   ))
 }
 
-MakeFertilization <- function(gamete1, gamete2){
+MakeFertilization <- function(gametes){
   
-  zygotes <- paste0(gamete1, "-", gamete2)
+  zygotes <- paste0(gametes$maternal, "-", gametes$paternal)
   
-  genotype_lookup <- data.frame(
+  lookup <- data.frame(
     zygote = c("0-0", "0-1", "1-0", "1-1"),
     genotype = c(1, 2, 3, 4)
   )
   
-  compressed_genotype <- genotype_lookup[zygotes]
+  genotype <- lookup[zygotes]
 }
 
 ###### END FUNCTIONS ########
