@@ -92,34 +92,6 @@ PickParents <- function(pop, w){
     return(list(mothers = mothers, fathers = fathers))
   }
   
-#GetGametes <- function(mothers,fathers){
-  get_maternal_alleles <- function(pop,mothers){
-    genotype <- pop[mothers, ]
-    #get the individuals from pop that are mothers 
-    allele_1 <- numeric(length(genotype))
-    allele_2 <- numeric(length(genotype))
-    #create a vector for the two alleles 
-    allele_1 <- ifelse(genotype == 1, 0, 
-                ifelse(genotype == 2, 0, 
-                ifelse(genotype == 3, 1, 
-                ifelse(genotype == 4, 1, NA))))
-    
-    allele_2 <- ifelse(genotype == 1, 0, 
-                ifelse(genotype == 2, 1, 
-                ifelse(genotype == 3, 0, 
-                ifelse(genotype == 4, 1, NA))))
-    return(list(allele_1 = allele_1, allele_2 = allele_2))
-    
-    
-    
-    
-    
-  }
-    
-  
-}
-
-#new function
 GetGametes <- function(mothers, fathers, pop) {
   genotype_lookup <- data.frame(
     genotype = c(1, 2, 3, 4),
@@ -169,6 +141,63 @@ GetGametes <- function(mothers, fathers, pop) {
     paternal_alleles = paternal_alleles
   ))
 }
+
+
+GetGametes <- function(mothers, fathers, pop, mu1, beta1) {
+  genotype_lookup <- data.frame(
+    genotype = c(1, 2, 3, 4),
+    allele_1 = c(0, 0, 1, 1),
+    allele_2 = c(0, 1, 0, 1)
+  )
+  
+  get_maternal_alleles <- function(pop, mothers) {
+    genotype <- pop[mothers, ]
+    matched_rows <- match(genotype, genotype_lookup$genotype)
+    allele_1 <- genotype_lookup$allele_1[matched_rows]
+    allele_2 <- genotype_lookup$allele_2[matched_rows]
+    return(list(allele_1 = allele_1, allele_2 = allele_2))
+  }
+  
+  get_paternal_alleles <- function(pop, fathers) {
+    genotype <- pop[fathers, ]
+    matched_rows <- match(genotype, genotype_lookup$genotype)
+    allele_1 <- genotype_lookup$allele_1[matched_rows]
+    allele_2 <- genotype_lookup$allele_2[matched_rows]
+    return(list(allele_1 = allele_1, allele_2 = allele_2))
+  }
+  
+  # Get maternal alleles
+  maternal_alleles <- get_maternal_alleles(pop, mothers)
+  
+  # Get paternal alleles
+  paternal_alleles <- get_paternal_alleles(pop, fathers)
+  
+  # Add x Dom effect calculations
+  if (single.arch == "add.x.dom") {
+    # Compress the genome into vector of values 0-2
+    genvec <- colSums(pop)
+    genvec <- ifelse(genvec == 2, 2, ifelse(genvec == 1, 1, 0))  # Vector of 0, 1, 2
+    
+    # Compare the ith and i+10th values in the vector
+    mlgen <- paste(genvec[1:10], genvec[11:20], sep = ",")
+    lookup <- c("0,0" = 0.125, "0,1" = 0, "1,0" = -0.25, "1,1" = 0, 
+                "2,2" = -0.125, "2,1" = 0, "1,2" = 0.25, "2,0" = 0.125, "0,2" = -0.125)
+    
+    # Calculate opp as the mean of mapped lookup values
+    opp <- mean(lookup[mlgen])
+    
+    # Calculate single.trait
+    single.trait <- mu1 + opp * beta1
+  }
+  
+  return(list(
+    maternal_alleles = maternal_alleles,
+    paternal_alleles = paternal_alleles,
+    single.trait = single.trait  # Add the computed trait to the output
+  ))
+}
+### Error in GetGametes(mothers, fathers, pop) : 
+###object 'single.arch' not found
 
 ###### END FUNCTIONS ########
 
