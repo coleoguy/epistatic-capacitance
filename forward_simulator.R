@@ -19,7 +19,15 @@ iter <- 20
 ###### FUNCTIONS #########
 
 
-Life_cycle
+Life_cycle <- function() {
+  GetPopulation()
+  MutatePop()
+  GetPheno()
+  GetFit()
+  PickParents()
+  GetGametes()
+  MakeFertilization()
+}
 
 GetPopulation <- function(N,loci){
   
