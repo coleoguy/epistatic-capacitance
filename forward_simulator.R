@@ -18,6 +18,9 @@ iter <- 20
 
 ###### FUNCTIONS #########
 
+
+Life_cycle
+
 GetPopulation <- function(N,loci){
   
   # The numbers present in the matrix represent the genotype at a locus. 
@@ -93,37 +96,6 @@ PickParents <- function(pop, w){
     return(list(mothers = mothers, fathers = fathers))
   }
   
-<<<<<<< HEAD
-=======
-# #GetGametes <- function(mothers,fathers){
-#   get_maternal_alleles <- function(pop,mothers){
-#     genotype <- pop[mothers, ]
-#     #get the individuals from pop that are mothers 
-#     allele_1 <- numeric(length(genotype))
-#     allele_2 <- numeric(length(genotype))
-#     #create a vector for the two alleles 
-#     allele_1 <- ifelse(genotype == 1, 0, 
-#                 ifelse(genotype == 2, 0, 
-#                 ifelse(genotype == 3, 1, 
-#                 ifelse(genotype == 4, 1, NA))))
-#     
-#     allele_2 <- ifelse(genotype == 1, 0, 
-#                 ifelse(genotype == 2, 1, 
-#                 ifelse(genotype == 3, 0, 
-#                 ifelse(genotype == 4, 1, NA))))
-#     return(list(allele_1 = allele_1, allele_2 = allele_2))
-#     
-#     
-#     
-#     
-#     
-#   }
-#     
-#   
-# }
-
-#new function
->>>>>>> 8784da63dfa5cb851da97d14455117fd648ea5c0
 GetGametes <- function(mothers, fathers, pop) {
   genotype_lookup <- data.frame(
     genotype = c(1, 2, 3, 4),
@@ -173,8 +145,6 @@ GetGametes <- function(mothers, fathers, pop) {
     paternal_alleles = paternal_alleles
   ))
 }
-
-<<<<<<< HEAD
 
 GetGametes <- function(mothers, fathers, pop, mu1, beta1) {
   genotype_lookup <- data.frame(
@@ -231,7 +201,7 @@ GetGametes <- function(mothers, fathers, pop, mu1, beta1) {
 }
 ### Error in GetGametes(mothers, fathers, pop) : 
 ###object 'single.arch' not found
-=======
+
 MakeFertilization <- function(gametes){
   
   zygotes <- paste0(gametes$maternal, "-", gametes$paternal)
@@ -243,7 +213,7 @@ MakeFertilization <- function(gametes){
   
   genotype <- lookup[zygotes]
 }
->>>>>>> 8784da63dfa5cb851da97d14455117fd648ea5c0
+
 
 ###### END FUNCTIONS ########
 
