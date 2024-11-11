@@ -9,9 +9,13 @@ loci <- 10 #positions on the genome
 mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
 baseval <- 10 # this is a base minimum value for our phenotype
 loci.imp <- sort(sample(2:loci, loci/2))
-opt <- 20
-sigma <- 3
-iter <- 1000
+opt <- 17
+sigma <- 1
+gen <- 1000
+
+# TODO: create bottleneck feature on simulation
+bottleneck_gen <- #num
+pop_ratio <- #num
 ###### End Starting Conditions #########
 
 
@@ -159,10 +163,10 @@ MakeFertilization <- function(gametes){
   return(new_pop)
 }
 
-SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, iter, sigma) {
+SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma) {
   pop <- GetPopulation(N, loci)
-  avg_phenos <- numeric(iter)
-  for (generation in 1:iter) {
+  avg_phenos <- numeric(gen)
+  for (generation in 1:gen) {
     pop <- MutatePop(pop, mu)
     phenos <- GetPheno(pop, loci.imp, baseval)
     avg_phenos[generation] <- mean(phenos)
@@ -176,9 +180,9 @@ SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, iter, sigma
 }
 
 # Run the simulation
-simulation_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, iter, sigma)
+simulation_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma)
 final_population <- simulation_result$final_population
 average_phenotypes <- simulation_result$avg_phenos
 
-plot(average_phenotypes)
+plot(average_phenotypes, type = "l")
 
