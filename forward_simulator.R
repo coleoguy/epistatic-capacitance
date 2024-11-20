@@ -4,21 +4,18 @@
 
 
 ###### Starting Conditions #########
-N <- 100 #population
+N <- 10 #population
 loci <- 100 #positions on the genome 
 mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
-baseval <- 10 # this is a base minimum value for our phenotype
-loci.imp <- sort(sample(2:loci, loci/2))
-opt <- 20
-sigma <- 5
-gen <- 100
-
+baseval <- 0 # this is a base minimum value for our phenotype
+loci.imp <- sort(sample(2:loci, loci/10))
+opt <- 100
+sigma <- 10
+gen <- 50
+arch <- "add" # add, addxadd
 ###### End Starting Conditions #########
 
-
 ###### FUNCTIONS #########
-
-
 
 GetPopulation <- function(N,loci){
   
@@ -75,11 +72,16 @@ MutatePop <- function(pop, mu) {
   return(mutants)
 }
 
-GetPheno <- function(pop, loci.imp, baseval){
+GetPheno <- function(pop, loci.imp, baseval, arch){
   temppop <- pop[,loci.imp]
-  temppop[temppop==1] <- 0
-  temppop[temppop %in% c(2, 3)] <- 1
-  temppop[temppop == 4] <- 2
+  if(arch == "add") {
+    temppop[temppop==1] <- 0
+    temppop[temppop %in% c(2, 3)] <- 1
+    temppop[temppop == 4] <- 2
+  }
+  if(arch == "addxadd") {
+    # Epistasis: additive by additive
+  }
   phenos <- rowSums(temppop) + baseval
   return(phenos)
 }
@@ -121,7 +123,6 @@ Reproduction <- function(pop, N, w, loci) {
   return(new_population)
 }
 
-
 SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma) {
   pop <- GetPopulation(N, loci)
   avg_phenos <- numeric(gen)
@@ -137,8 +138,12 @@ SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma)
 }
 
 # Run the simulation
-simulation_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma)
-
-
-plot(simulation_result$avg_phenos, type = "l", ylim = c(0, 100))
-
+iter <- 50
+for (i in 1:iter) {
+  simulation_result <- SimulateGenerations(N = 1000, loci, mu, baseval, loci.imp, opt, gen, sigma)
+  lines(simulation_result$avg_phenos, col = "#314CB6")
+  if(i == 1) {
+    plot(simulation_result$avg_phenos, type = "l", col = "#314CB6",
+         ylim = c(min(simulation_result$avg_phenos), max(simulation_result$avg_phenos)))
+  }
+}
