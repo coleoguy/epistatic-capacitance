@@ -5,17 +5,14 @@
 
 ###### Starting Conditions #########
 N <- 100 #population
-loci <- 10 #positions on the genome 
+loci <- 100 #positions on the genome 
 mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
 baseval <- 10 # this is a base minimum value for our phenotype
 loci.imp <- sort(sample(2:loci, loci/2))
-opt <- 17
-sigma <- 1
-gen <- 1000
+opt <- 20
+sigma <- 5
+gen <- 100
 
-# TODO: create bottleneck feature on simulation
-bottleneck_gen <- #num
-pop_ratio <- #num
 ###### End Starting Conditions #########
 
 
@@ -31,15 +28,19 @@ GetPopulation <- function(N,loci){
   # 0,1 = 2
   # 1,0 = 3
   # 1,1 = 4
-  tot.loci <- N*loci
-  pop <- matrix(sample(1:4, tot.loci, replace=T), N, loci)
-  #set as female
-  pop[1:(N/2),1] <- 1
+  pop <- matrix(sample(1:4, N*loci, replace=T), N, loci)
+  
+  # We are moving away into a model without sex, so the bottom part is commented out
+  
+  # set as female
+  # pop[1:(N/2),1] <- 1
   # set half as male
-  pop[(N/2 + 1):N,1] <- 2
+  # pop[(N/2 + 1):N,1] <- 2
   # first column is sex determining locus with 1=XX 2=XY 
   # remaining columns are the rest of the genome
   # each row in pop is one individual
+  
+  
   return(pop)
   
 }
@@ -90,78 +91,36 @@ GetFit <- function(obs, opt, sigma){
   return(w)
 }
 
-PickParents <- function(pop, w){
+Reproduction <- function(pop, N, w, loci) {
+  # Sample parents based on fitness probabilities
+  parents <- sample(N, size = 2 * N, replace = TRUE, prob = w)
   
-  mothers <- sample(1:(N/2), size = N, replace = TRUE, prob = w[1:(N/2)])
-  fathers <- sample((N/2 + 1):N, size = N, replace = TRUE, prob = w[(N/2 + 1):N])
+  # Generate haplotype selection matrix
+  haplotypes <- matrix(sample(1:2, 2 * N * loci, replace = TRUE), nrow = 2 * N, ncol = loci)
   
-  return(list(mothers = mothers, fathers = fathers))
-}
-
-GetGametes <- function(mothers, fathers, pop) {
-  genotype_lookup <- data.frame(
-    genotype = c(1, 2, 3, 4),
-    allele_1 = c(0, 0, 1, 1),
-    allele_2 = c(0, 1, 0, 1)
+  # Gamete formation
+  gametes <- ifelse(
+    pop[parents, ] == 1,  # Genotype 1 -> Both alleles are 0
+    0,
+    ifelse(
+      pop[parents, ] == 4,  # Genotype 4 -> Both alleles are 1
+      1,
+      ifelse(
+        pop[parents, ] == 2,  # Genotype 2 -> Depends on haplotype
+        ifelse(haplotypes == 1, 0, 1),
+        ifelse(haplotypes == 1, 1, 0)  # Genotype 3 -> Depends on haplotype
+      )
+    )
   )
   
-  get_maternal_alleles <- function(pop, mothers) {
-    # Call the mothers and their genotypes
-    genotype <- pop[mothers, ]
-    
-    
-    matched_rows <- match(genotype, genotype_lookup$genotype)
-    # Match rows of the genotype to the genotypes in the table 
-    
-    # Get alleles that match rows 
-    allele_1 <- genotype_lookup$allele_1[matched_rows]
-    allele_2 <- genotype_lookup$allele_2[matched_rows]
-    
-    return(list(allele_1 = allele_1, allele_2 = allele_2))
-  }
+  # Fertilization: Pair gametes to form diploid genotypes
+  maternal_gametes <- gametes[seq(1, 2 * N, by = 2), ]
+  paternal_gametes <- gametes[seq(2, 2 * N, by = 2), ]
+  new_population <- 1 + maternal_gametes + paternal_gametes * 2
   
-  #same as mothers
-  get_paternal_alleles <- function(pop, fathers) {
-    # Get the genotypes of the fathers
-    genotype <- pop[fathers, ]
-    
-    
-    matched_rows <- match(genotype, genotype_lookup$genotype)
-    
-    # Extract alleles using the matched rows
-    allele_1 <- genotype_lookup$allele_1[matched_rows]
-    allele_2 <- genotype_lookup$allele_2[matched_rows]
-    
-    return(list(allele_1 = allele_1, allele_2 = allele_2))
-  }
-  
-  # Get maternal alleles
-  maternal_alleles <- get_maternal_alleles(pop, mothers)
-  
-  # Get paternal alleles
-  paternal_alleles <- get_paternal_alleles(pop, fathers)
-  
-  return(list(
-    maternal_alleles = maternal_alleles,
-    paternal_alleles = paternal_alleles
-  ))
+  return(new_population)
 }
 
-MakeFertilization <- function(gametes){
-  
-  zygotes <- paste0(gametes$maternal_alleles$allele_1, "-", gametes$paternal_alleles$allele_1)
-  
-  lookup <- data.frame(
-    zygote = c("0-0", "0-1", "1-0", "1-1"),
-    genotype = c(1, 2, 3, 4)
-  )
-  
-  genotype <- lookup$genotype[match(zygotes, lookup$zygote)]
-  
-  # Create new population matrix with updated genotypes
-  new_pop <- matrix(genotype, nrow = length(zygotes), ncol = loci, byrow = TRUE)
-  return(new_pop)
-}
 
 SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma) {
   pop <- GetPopulation(N, loci)
@@ -171,9 +130,7 @@ SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma)
     phenos <- GetPheno(pop, loci.imp, baseval)
     avg_phenos[generation] <- mean(phenos)
     w <- GetFit(phenos, opt, sigma)
-    parents <- PickParents(pop, w)
-    gametes <- GetGametes(parents$mothers, parents$fathers, pop)
-    pop <- MakeFertilization(gametes)
+    pop <- Reproduction(pop, N, w, loci)
     print(generation)
   }
   return(list(final_population = pop, avg_phenos = avg_phenos))
@@ -181,8 +138,7 @@ SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma)
 
 # Run the simulation
 simulation_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma)
-final_population <- simulation_result$final_population
-average_phenotypes <- simulation_result$avg_phenos
 
-plot(average_phenotypes, type = "l")
+
+plot(simulation_result$avg_phenos, type = "l", ylim = c(0, 100))
 
