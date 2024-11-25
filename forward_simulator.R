@@ -4,7 +4,7 @@
 
 
 ###### Starting Conditions #########
-N <- 10 #population
+N <- 1000 #population
 loci <- 100 #positions on the genome 
 mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
 baseval <- 0 # this is a base minimum value for our phenotype
@@ -123,27 +123,32 @@ Reproduction <- function(pop, N, w, loci) {
   return(new_population)
 }
 
-SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma) {
+SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, verbose) {
   pop <- GetPopulation(N, loci)
   avg_phenos <- numeric(gen)
   for (generation in 1:gen) {
     pop <- MutatePop(pop, mu)
-    phenos <- GetPheno(pop, loci.imp, baseval)
+    phenos <- GetPheno(pop, loci.imp, baseval, arch)
     avg_phenos[generation] <- mean(phenos)
     w <- GetFit(phenos, opt, sigma)
     pop <- Reproduction(pop, N, w, loci)
-    print(generation)
+    if(verbose) print(generation)
   }
   return(list(final_population = pop, avg_phenos = avg_phenos))
 }
 
+
+
+
 # Run the simulation
-iter <- 50
+iter <- 5
 for (i in 1:iter) {
-  simulation_result <- SimulateGenerations(N = 1000, loci, mu, baseval, loci.imp, opt, gen, sigma)
-  lines(simulation_result$avg_phenos, col = "#314CB6")
+  print(i)
+  simulation_result <- SimulateGenerations(N = N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, verbose=F)
   if(i == 1) {
     plot(simulation_result$avg_phenos, type = "l", col = "#314CB6",
          ylim = c(min(simulation_result$avg_phenos), max(simulation_result$avg_phenos)))
+  }else{
+    lines(simulation_result$avg_phenos, col = "#314CB6")
   }
 }
