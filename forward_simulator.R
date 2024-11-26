@@ -4,15 +4,17 @@
 
 
 ###### Starting Conditions #########
-N <- 1000 #population
+N <- 100 #population
 loci <- 100 #positions on the genome 
 mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
 baseval <- 0 # this is a base minimum value for our phenotype
 loci.imp <- sort(sample(2:loci, loci/10))
-opt <- 100
-sigma <- 10
+opt <- 20
+sigma <- 2
 gen <- 50
-arch <- "add" # add, addxadd
+arch <- "sign" # add, sign, inc, dec
+sag <- 2
+sign_flag <- "half" # half, alter
 ###### End Starting Conditions #########
 
 ###### FUNCTIONS #########
@@ -72,17 +74,40 @@ MutatePop <- function(pop, mu) {
   return(mutants)
 }
 
-GetPheno <- function(pop, loci.imp, baseval, arch){
+GetPheno <- function(pop, loci.imp, baseval, arch, sign_flag){
   temppop <- pop[,loci.imp]
+  temppop[temppop==1] <- 0
+  temppop[temppop %in% c(2, 3)] <- 1
+  temppop[temppop == 4] <- 2
+  
   if(arch == "add") {
-    temppop[temppop==1] <- 0
-    temppop[temppop %in% c(2, 3)] <- 1
-    temppop[temppop == 4] <- 2
+    phenos <- rowSums(temppop) + baseval
   }
-  if(arch == "addxadd") {
-    # Epistasis: additive by additive
+  
+  if(arch == "sign") {
+    if (sign_flag == "half") {
+      dir_loci <- temppop[, 1:(length(loci.imp)/2)]
+      inv_loci <- temppop[, (length(loci.imp)/2)+1:(length(loci.imp)/2)]
+    } else if (sign_flag == "alter") {
+      dir_loci <- temppop[, seq(1, length(loci.imp), by = 2)]
+      inv_loci <- temppop[, seq(2, length(loci.imp), by = 2)]
+    }
+    
+    cond1 <- (dir_loci == 2 & inv_loci == 2) | (dir_loci == 0 & inv_loci == 0)
+    cond2 <- (dir_loci == 2 & inv_loci == 0) | (dir_loci == 0 & inv_loci == 2)
+    cond3 <- (dir_loci == 1 | inv_loci == 1)
+
+    phenos <- baseval + rowSums(4 * cond1 + 0 * cond2 + 2 * cond3)
   }
-  phenos <- rowSums(temppop) + baseval
+  
+  if(arch == "inc") {
+    phenos <- (length(loci.imp)*2)*((rowSums(temppop) + baseval)/(length(loci.imp)*2))^sag
+  }
+  
+  if(arch == "dec") {
+    phenos <- baseval + (length(loci.imp) * 2 - baseval) * ((rowSums(temppop) + baseval - baseval) / (length(loci.imp) * 2 - baseval))^(1/sag)
+  }
+  
   return(phenos)
 }
 
@@ -123,12 +148,12 @@ Reproduction <- function(pop, N, w, loci) {
   return(new_population)
 }
 
-SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, verbose) {
+SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, sign_flag, verbose) {
   pop <- GetPopulation(N, loci)
   avg_phenos <- numeric(gen)
   for (generation in 1:gen) {
     pop <- MutatePop(pop, mu)
-    phenos <- GetPheno(pop, loci.imp, baseval, arch)
+    phenos <- GetPheno(pop, loci.imp, baseval, arch, sign_flag)
     avg_phenos[generation] <- mean(phenos)
     w <- GetFit(phenos, opt, sigma)
     pop <- Reproduction(pop, N, w, loci)
@@ -138,16 +163,23 @@ SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma,
 }
 
 
-
+# # Test for architectures
+# plot(seq(0, 20, length.out = 400), type = "l")
+# lines(baseval + (length(loci.imp) * 2) * (seq(0, 20, length.out = 400) / (length(loci.imp) * 2))^(1/2), col = "#4D6CFA", lwd = 2)
+# lines((length(loci.imp)*2)*((seq(0, 20, length.out = 400) + baseval)/(length(loci.imp)*2))^2, , col = "#4D6CFA", lwd = 2)
+# lines(baseval + (length(loci.imp) * 2) * (seq(0, 20, length.out = 400) / (length(loci.imp) * 2))^(1/5), col = "#D11149", lwd = 2)
+# lines((length(loci.imp)*2)*((seq(0, 20, length.out = 400) + baseval)/(length(loci.imp)*2))^5, col = "#D11149", lwd = 2)
+# lines(baseval + (length(loci.imp) * 2) * (seq(0, 20, length.out = 400) / (length(loci.imp) * 2))^(1/10), col = "#607744", lwd = 2)
+# lines((length(loci.imp)*2)*((seq(0, 20, length.out = 400) + baseval)/(length(loci.imp)*2))^10, col = "#607744", lwd = 2)
 
 # Run the simulation
-iter <- 5
+iter <- 10
 for (i in 1:iter) {
   print(i)
-  simulation_result <- SimulateGenerations(N = N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, verbose=F)
+  simulation_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, sign_flag, verbose=F)
   if(i == 1) {
     plot(simulation_result$avg_phenos, type = "l", col = "#314CB6",
-         ylim = c(min(simulation_result$avg_phenos), max(simulation_result$avg_phenos)))
+         ylim = c(0, 20))
   }else{
     lines(simulation_result$avg_phenos, col = "#314CB6")
   }
