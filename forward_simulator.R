@@ -14,7 +14,7 @@ sigma <- 2
 gen <- 50
 arch <- "sign" # add, sign, inc, dec
 sag <- 2
-sign_flag <- "half" # half, alter
+sign_flag <- "alter" # half, alter
 ###### End Starting Conditions #########
 
 ###### FUNCTIONS #########
@@ -123,8 +123,10 @@ Reproduction <- function(pop, N, w, loci) {
   parents <- sample(N, size = 2 * N, replace = TRUE, prob = w)
   
   # Generate haplotype selection matrix
-  haplotypes <- matrix(sample(1:2, 2 * N * loci, replace = TRUE), nrow = 2 * N, ncol = loci)
-  
+  recomb <- pmax(pmin(rpois(n = 2 * N, lambda = 10), loci), 1)
+  haplotypes <- matrix(unlist(lapply(recomb, function(r) rep(sample(1:2, r, replace = TRUE), each = ceiling(loci / r), length.out = loci))),
+                       nrow = 2 * N, ncol = loci, byrow = TRUE)
+
   # Gamete formation
   gametes <- ifelse(
     pop[parents, ] == 1,  # Genotype 1 -> Both alleles are 0
@@ -139,7 +141,6 @@ Reproduction <- function(pop, N, w, loci) {
       )
     )
   )
-  
   # Fertilization: Pair gametes to form diploid genotypes
   maternal_gametes <- gametes[seq(1, 2 * N, by = 2), ]
   paternal_gametes <- gametes[seq(2, 2 * N, by = 2), ]
