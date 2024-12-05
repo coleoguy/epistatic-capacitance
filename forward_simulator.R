@@ -4,13 +4,13 @@
 
 
 ###### Starting Conditions #########
-N <- 100 #population
+N <- 500 #population
 loci <- 100 #positions on the genome 
 mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
 baseval <- 0 # this is a base minimum value for our phenotype
 loci.imp <- sort(sample(2:loci, loci/10))
 opt <- 20
-sigma <- 2
+sigma <- 5
 gen <- 50
 arch <- "sign" # add, sign, inc, dec
 sag <- 2
@@ -185,3 +185,8 @@ for (i in 1:iter) {
     lines(simulation_result$avg_phenos, col = "#314CB6")
   }
 }
+
+
+
+# snippet
+# plot(GetFit(obs=seq(from=0,to=20, length.out=100), 20, sigma=5)~seq(from=0,to=20, length.out=100))
