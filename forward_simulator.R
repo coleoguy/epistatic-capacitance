@@ -4,7 +4,7 @@
 
 
 ###### Starting Conditions #########
-N <- 100 #population
+N <- 500 #population
 loci <- 100 #positions on the genome 
 mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
 baseval <- 0 # this is a base minimum value for our phenotype
@@ -12,7 +12,7 @@ loci.imp <- sort(sample(2:loci, loci/10))
 opt <- 20
 sigma <- 2
 gen <- 50
-arch <- "sign" # add, sign, inc, dec
+arch <- "add" # add, sign, inc, dec
 sag <- 2
 sign_flag <- "alter" # half, alter
 ###### End Starting Conditions #########
@@ -164,14 +164,14 @@ SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma,
 }
 
 
-# # Test for architectures
-# plot(seq(0, 20, length.out = 400), type = "l")
-# lines(baseval + (length(loci.imp) * 2) * (seq(0, 20, length.out = 400) / (length(loci.imp) * 2))^(1/2), col = "#4D6CFA", lwd = 2)
-# lines((length(loci.imp)*2)*((seq(0, 20, length.out = 400) + baseval)/(length(loci.imp)*2))^2, , col = "#4D6CFA", lwd = 2)
-# lines(baseval + (length(loci.imp) * 2) * (seq(0, 20, length.out = 400) / (length(loci.imp) * 2))^(1/5), col = "#D11149", lwd = 2)
-# lines((length(loci.imp)*2)*((seq(0, 20, length.out = 400) + baseval)/(length(loci.imp)*2))^5, col = "#D11149", lwd = 2)
-# lines(baseval + (length(loci.imp) * 2) * (seq(0, 20, length.out = 400) / (length(loci.imp) * 2))^(1/10), col = "#607744", lwd = 2)
-# lines((length(loci.imp)*2)*((seq(0, 20, length.out = 400) + baseval)/(length(loci.imp)*2))^10, col = "#607744", lwd = 2)
+# Test for architectures
+plot(seq(0, 20, length.out = 400), type = "l")
+lines(baseval + (length(loci.imp) * 2) * (seq(0, 20, length.out = 400) / (length(loci.imp) * 2))^(1/2), col = "#4D6CFA", lwd = 2)
+lines((length(loci.imp)*2)*((seq(0, 20, length.out = 400) + baseval)/(length(loci.imp)*2))^2, , col = "#4D6CFA", lwd = 2)
+lines(baseval + (length(loci.imp) * 2) * (seq(0, 20, length.out = 400) / (length(loci.imp) * 2))^(1/5), col = "#D11149", lwd = 2)
+lines((length(loci.imp)*2)*((seq(0, 20, length.out = 400) + baseval)/(length(loci.imp)*2))^5, col = "#D11149", lwd = 2)
+lines(baseval + (length(loci.imp) * 2) * (seq(0, 20, length.out = 400) / (length(loci.imp) * 2))^(1/10), col = "#607744", lwd = 2)
+lines((length(loci.imp)*2)*((seq(0, 20, length.out = 400) + baseval)/(length(loci.imp)*2))^10, col = "#607744", lwd = 2)
 
 # Run the simulation
 iter <- 10
