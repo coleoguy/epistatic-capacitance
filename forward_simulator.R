@@ -4,41 +4,30 @@
 
 
 ###### Starting Conditions #########
-N <- 500 #population
-loci <- 100 #positions on the genome 
-mu <- 10^-5 #human mutation rate 10^-9 for an individual nucleotide
+N <- 100 #population
+loci <- 100 # positions on the genome 
+mu <- 10^-5 # human mutation rate 10^-9 for an individual nucleotide
 baseval <- 0 # this is a base minimum value for our phenotype
-loci.imp <- sort(sample(2:loci, loci/10))
-opt <- 20
+loci.imp <- sort(sample(1:loci, loci/10))
+opt <- 10
 sigma <- 5
-gen <- 50
-arch <- "add" # add, sign, inc, dec
-sag <- 2
+gen <- 300
+arch <- "sign" # add, sign, inc, dec
+sag <- 1.1
 sign_flag <- "alter" # half, alter
 ###### End Starting Conditions #########
 
 ###### FUNCTIONS #########
 
 GetPopulation <- function(N,loci){
-  
-  # The numbers present in the matrix represent the genotype at a locus. 
-  # First number is maternal and second is paternal 
+
+  #pop <- matrix(sample(1:4, N*loci, replace=T), N, loci)
+  pop <- matrix(rep(1, N*loci), N, loci) 
+
   # 0,0 = 1
   # 0,1 = 2
   # 1,0 = 3
   # 1,1 = 4
-  pop <- matrix(sample(1:4, N*loci, replace=T), N, loci)
-  
-  # We are moving away into a model without sex, so the bottom part is commented out
-  
-  # set as female
-  # pop[1:(N/2),1] <- 1
-  # set half as male
-  # pop[(N/2 + 1):N,1] <- 2
-  # first column is sex determining locus with 1=XX 2=XY 
-  # remaining columns are the rest of the genome
-  # each row in pop is one individual
-  
   
   return(pop)
   
@@ -149,42 +138,75 @@ Reproduction <- function(pop, N, w, loci) {
   return(new_population)
 }
 
+GetArch <- function(pop, loci.imp, phenos) {
+  
+  pop <- pop[, loci.imp]
+  
+  # Additive
+  a_mat <- matrix(0, nrow = N, ncol = length(loci.imp))
+  a_mat[pop == 1] <- 1
+  a_mat[pop == 4] <- -1
+  
+  fit <- lm(phenos ~ a_mat)
+  R2a <- summary(fit)$adj.r.squared
+  
+  # Dominance
+  d_mat <- matrix(1, nrow = N, ncol = length(loci.imp))
+  d_mat[pop == 1 | pop == 4] <- 0
+  
+  fit <- lm(phenos ~ a_mat + d_mat)
+  R2ad <- summary(fit)$adj.r.squared
+  
+  # Epistasis
+  # Precompute pairs of indices for interaction terms
+  if (sign_flag == "alter") {
+    indices <- seq(1, ncol(pop), by = 2)
+  } else {
+    half_cols <- ncol(pop) / 2
+    indices <- 1:half_cols
+  }
+  
+  # Compute epistatic interaction matrices
+  e_mat_aa <- a_mat[, indices] * a_mat[, indices + ifelse(sign_flag == "alter", 1, half_cols)]
+  e_mat_ad <- a_mat[, indices] * d_mat[, indices + ifelse(sign_flag == "alter", 1, half_cols)]
+  e_mat_dd <- d_mat[, indices] * d_mat[, indices + ifelse(sign_flag == "alter", 1, half_cols)]
+  
+  fit <- lm(phenos ~ a_mat + d_mat + e_mat_aa + e_mat_ad + e_mat_dd)
+  R2ade <- summary(fit)$adj.r.squared
+  
+  return(c(R2a, R2ad, R2ade))
+}
+
 SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, sign_flag, verbose) {
   pop <- GetPopulation(N, loci)
   avg_phenos <- numeric(gen)
+  lm_arch <- matrix(NA, nrow = gen, ncol = 3)
   for (generation in 1:gen) {
     pop <- MutatePop(pop, mu)
     phenos <- GetPheno(pop, loci.imp, baseval, arch, sign_flag)
     avg_phenos[generation] <- mean(phenos)
+    lm_arch[generation, ] <- GetArch(pop, loci.imp, phenos)
     w <- GetFit(phenos, opt, sigma)
     pop <- Reproduction(pop, N, w, loci)
     if(verbose) print(generation)
   }
-  return(list(final_population = pop, avg_phenos = avg_phenos))
+  return(list(final_population = pop, avg_phenos = avg_phenos, lm_arch = lm_arch))
 }
 
-
-# Test for architectures
-plot(seq(0, 20, length.out = 400), type = "l")
-lines(baseval + (length(loci.imp) * 2) * (seq(0, 20, length.out = 400) / (length(loci.imp) * 2))^(1/2), col = "#4D6CFA", lwd = 2)
-lines((length(loci.imp)*2)*((seq(0, 20, length.out = 400) + baseval)/(length(loci.imp)*2))^2, , col = "#4D6CFA", lwd = 2)
-lines(baseval + (length(loci.imp) * 2) * (seq(0, 20, length.out = 400) / (length(loci.imp) * 2))^(1/5), col = "#D11149", lwd = 2)
-lines((length(loci.imp)*2)*((seq(0, 20, length.out = 400) + baseval)/(length(loci.imp)*2))^5, col = "#D11149", lwd = 2)
-lines(baseval + (length(loci.imp) * 2) * (seq(0, 20, length.out = 400) / (length(loci.imp) * 2))^(1/10), col = "#607744", lwd = 2)
-lines((length(loci.imp)*2)*((seq(0, 20, length.out = 400) + baseval)/(length(loci.imp)*2))^10, col = "#607744", lwd = 2)
-
 # Run the simulation
-iter <- 10
+iter <- 20
 for (i in 1:iter) {
   print(i)
   simulation_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, sign_flag, verbose=F)
+  epi <- (simulation_result$lm_arch[,3]-simulation_result$lm_arch[,2])
   if(i == 1) {
-    plot(simulation_result$avg_phenos, type = "l", col = "#314CB6",
-         ylim = c(0, 20))
+    plot(simulation_result$lm_arch[,1], type = "l", col = "#314CB6",
+         ylim = c(0, 1))
   }else{
-    lines(simulation_result$avg_phenos, col = "#314CB6")
+    lines(simulation_result$lm_arch[,1], col = "#314CB6")
   }
 }
+
 
 
 
