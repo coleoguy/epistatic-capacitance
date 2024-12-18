@@ -11,7 +11,7 @@ baseval <- 0 # this is a base minimum value for our phenotype
 loci.imp <- sort(sample(1:loci, loci/10))
 opt <- 10
 sigma <- 5
-gen <- 300
+gen <- 100
 arch <- "sign" # add, sign, inc, dec
 sag <- 1.1
 sign_flag <- "alter" # half, alter
@@ -22,7 +22,7 @@ sign_flag <- "alter" # half, alter
 GetPopulation <- function(N,loci){
 
   #pop <- matrix(sample(1:4, N*loci, replace=T), N, loci)
-  pop <- matrix(rep(1, N*loci), N, loci) 
+  pop <- matrix(rep(4, N*loci), N, loci) 
 
   # 0,0 = 1
   # 0,1 = 2
@@ -194,21 +194,22 @@ SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma,
 }
 
 # Run the simulation
-iter <- 20
+iter <- 100
+pheno <- add <- dom <- epi <- matrix(NA, nrow = iter, ncol = gen)
 for (i in 1:iter) {
   print(i)
   simulation_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, sign_flag, verbose=F)
-  epi <- (simulation_result$lm_arch[,3]-simulation_result$lm_arch[,2])
-  if(i == 1) {
-    plot(simulation_result$lm_arch[,1], type = "l", col = "#314CB6",
-         ylim = c(0, 1))
-  }else{
-    lines(simulation_result$lm_arch[,1], col = "#314CB6")
-  }
+  add[i,] <- simulation_result$lm_arch[,1]
+  dom[i,] <- (simulation_result$lm_arch[,2]-simulation_result$lm_arch[,1])
+  epi[i,] <- (simulation_result$lm_arch[,3]-simulation_result$lm_arch[,2])
+  pheno[i,] <- simulation_result$avg_phenos
 }
 
+plot(colMeans(epi), type = "l", col = rgb(0.06,0.24,0.49,0.8), ylim = c(0, 1), lwd = 3)
+lines(colMeans(add), col = rgb(0.89,0.34,0.18,0.8), lwd = 3)
+lines(colMeans(pheno)/20, col = rgb(0.45,0.66,0.46,0.8), lwd = 3)
 
 
 
 # snippet
-# plot(GetFit(obs=seq(from=0,to=20, length.out=100), 20, sigma=5)~seq(from=0,to=20, length.out=100))
+# plot(GetFit(obs=seq(from=0,to=40, length.out=100), 40, sigma=)~seq(from=0,to=40, length.out=100))
