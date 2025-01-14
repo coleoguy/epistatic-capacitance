@@ -4,13 +4,13 @@
 
 
 ###### Starting Conditions #########
-N <- 100 #population
+N <- 500 #population
 loci <- 100 # positions on the genome 
 mu <- 10^-5 # human mutation rate 10^-9 for an individual nucleotide
 baseval <- 0 # this is a base minimum value for our phenotype
 loci.imp <- sort(sample(1:loci, loci/10))
 opt <- 10
-sigma <- 5
+sigma <- 10
 gen <- 100
 arch <- "sign" # add, sign, inc, dec
 sag <- 1.1
@@ -194,7 +194,7 @@ SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma,
 }
 
 # Run the simulation
-iter <- 100
+iter <- 5
 pheno <- add <- dom <- epi <- matrix(NA, nrow = iter, ncol = gen)
 for (i in 1:iter) {
   print(i)
@@ -211,5 +211,85 @@ lines(colMeans(pheno)/20, col = rgb(0.45,0.66,0.46,0.8), lwd = 3)
 
 
 
+# Compare selection to epistasis eq
+num_sigma <- 100
+iter <- 100
+sigma_values <- seq(1, 10, length.out = num_sigma)
+epi_final_values <- numeric(num_sigma)
+
+for (s in seq_along(sigma_values)) {
+  
+  sigma_now <- sigma_values[s]
+  final_epi_reps <- numeric(iter)
+  
+  for (i in 1:iter) {
+    sim_result <- SimulateGenerations(N, 
+                                      loci, 
+                                      mu, 
+                                      baseval, 
+                                      loci.imp, 
+                                      opt, 
+                                      gen, 
+                                      sigma_now, 
+                                      arch, 
+                                      sign_flag, 
+                                      verbose = FALSE)
+    epi_values <- sim_result$lm_arch[,3] - sim_result$lm_arch[,2]
+    final_epi_reps[i] <- epi_values[gen]
+  }
+  epi_final_values[s] <- mean(final_epi_reps)
+}
+
+cor_value <- cor(sigma_values, epi_final_values)
+plot(sigma_values, epi_final_values, 
+     type = "l", 
+     xlab = expression(sigma), 
+     ylab = "Equilibrium Epistasis",
+     main = "Equilibrium Epistasis vs. Sigma")
+
+
+
+
+# Compare selection to epistasis eq
+library(viridis)
+iter <- 100
+sigma_values <- seq(1, 10, length.out = 10)
+cols <- viridis(length(sigma_values))
+plot(1:gen, 
+     rep(NA, gen), 
+     type = "n", 
+     xlab = "Generation", 
+     ylab = "Mean Epistasis (colMeans of 100 iter)", 
+     ylim = c(0, 1))
+
+for (s in seq_along(sigma_values)) {
+  print(s)
+  sigma_now <- sigma_values[s]
+  epi_data <- matrix(NA, nrow = iter, ncol = gen)
+  for (i in 1:iter) {
+    sim_result <- SimulateGenerations(N, 
+                                      loci, 
+                                      mu, 
+                                      baseval, 
+                                      loci.imp, 
+                                      opt, 
+                                      gen, 
+                                      sigma_now, 
+                                      arch, 
+                                      sign_flag, 
+                                      verbose = FALSE)
+    epi_data[i, ] <- sim_result$lm_arch[,3] - sim_result$lm_arch[,2]
+  }
+  lines(1:gen, colMeans(epi_data), 
+        col = cols[s], 
+        lwd = 2)
+}
+legend("bottomright", 
+       legend = paste("Sigma =", round(sigma_values, 2)), 
+       col = cols, 
+       lty = 1, 
+       lwd = 2)
+
+
 # snippet
-# plot(GetFit(obs=seq(from=0,to=40, length.out=100), 40, sigma=)~seq(from=0,to=40, length.out=100))
+# plot(GetFit(obs=seq(from=0,to=20, length.out=100), 10, sigma=1)~seq(from=0,to=20, length.out=100))
