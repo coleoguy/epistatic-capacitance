@@ -193,7 +193,11 @@ SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma,
   return(list(final_population = pop, avg_phenos = avg_phenos, lm_arch = lm_arch))
 }
 
-# Run the simulation
+
+
+###### ANALYSIS #########
+
+# SINGLE SET OF PARAMETERS
 iter <- 5
 pheno <- add <- dom <- epi <- matrix(NA, nrow = iter, ncol = gen)
 for (i in 1:iter) {
@@ -211,9 +215,9 @@ lines(colMeans(pheno)/20, col = rgb(0.45,0.66,0.46,0.8), lwd = 3)
 
 
 
-# Compare selection to epistasis eq
-num_sigma <- 100
-iter <- 100
+# Compare selection to epistasis eq MEAN
+num_sigma <- 10
+iter <- 1
 sigma_values <- seq(1, 10, length.out = num_sigma)
 epi_final_values <- numeric(num_sigma)
 
@@ -221,6 +225,7 @@ for (s in seq_along(sigma_values)) {
   
   sigma_now <- sigma_values[s]
   final_epi_reps <- numeric(iter)
+  print(s)
   
   for (i in 1:iter) {
     sim_result <- SimulateGenerations(N, 
@@ -240,7 +245,6 @@ for (s in seq_along(sigma_values)) {
   epi_final_values[s] <- mean(final_epi_reps)
 }
 
-cor_value <- cor(sigma_values, epi_final_values)
 plot(sigma_values, epi_final_values, 
      type = "l", 
      xlab = expression(sigma), 
@@ -250,7 +254,7 @@ plot(sigma_values, epi_final_values,
 
 
 
-# Compare selection to epistasis eq
+# Compare selection to epistasis eq ACROSS GENERATIONS
 library(viridis)
 iter <- 100
 sigma_values <- seq(1, 10, length.out = 10)
