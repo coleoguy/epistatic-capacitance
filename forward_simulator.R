@@ -4,7 +4,7 @@
 
 
 ###### Starting Conditions #########
-N <- 500 #population
+N <- 1000 #population
 loci <- 100 # positions on the genome 
 mu <- 10^-5 # human mutation rate 10^-9 for an individual nucleotide
 baseval <- 0 # this is a base minimum value for our phenotype
@@ -12,17 +12,18 @@ loci.imp <- sort(sample(1:loci, loci/10))
 opt <- 10
 sigma <- 10
 gen <- 100
-arch <- "sign" # add, sign, inc, dec
+arch <- "dxd" # add, axa, axd, dxa, dxd, inc, dec
 sag <- 1.1
-sign_flag <- "alter" # half, alter
+epi_flag <- "alter" # half, alter
 ###### End Starting Conditions #########
 
 ###### FUNCTIONS #########
 
 GetPopulation <- function(N,loci){
 
-  #pop <- matrix(sample(1:4, N*loci, replace=T), N, loci)
-  pop <- matrix(rep(4, N*loci), N, loci) 
+  pop <- matrix(sample(1:4, N*loci, replace=T), N, loci)
+  #pop <- matrix(rep(4, N*loci), N, loci)
+  #pop <- matrix(rep(4, N*loci), N, loci)
 
   # 0,0 = 1
   # 0,1 = 2
@@ -63,7 +64,7 @@ MutatePop <- function(pop, mu) {
   return(mutants)
 }
 
-GetPheno <- function(pop, loci.imp, baseval, arch, sign_flag){
+GetPheno <- function(pop, loci.imp, baseval, arch, epi_flag){
   temppop <- pop[,loci.imp]
   temppop[temppop==1] <- 0
   temppop[temppop %in% c(2, 3)] <- 1
@@ -73,11 +74,11 @@ GetPheno <- function(pop, loci.imp, baseval, arch, sign_flag){
     phenos <- rowSums(temppop) + baseval
   }
   
-  if(arch == "sign") {
-    if (sign_flag == "half") {
+  if(arch == "axa") {
+    if (epi_flag == "half") {
       dir_loci <- temppop[, 1:(length(loci.imp)/2)]
       inv_loci <- temppop[, (length(loci.imp)/2)+1:(length(loci.imp)/2)]
-    } else if (sign_flag == "alter") {
+    } else if (epi_flag == "alter") {
       dir_loci <- temppop[, seq(1, length(loci.imp), by = 2)]
       inv_loci <- temppop[, seq(2, length(loci.imp), by = 2)]
     }
@@ -86,6 +87,38 @@ GetPheno <- function(pop, loci.imp, baseval, arch, sign_flag){
     cond2 <- (dir_loci == 2 & inv_loci == 0) | (dir_loci == 0 & inv_loci == 2)
     cond3 <- (dir_loci == 1 | inv_loci == 1)
 
+    phenos <- baseval + rowSums(4 * cond1 + 0 * cond2 + 2 * cond3)
+  }
+  
+  if(arch == "dxd") {
+    if (epi_flag == "half") {
+      dir_loci <- temppop[, 1:(length(loci.imp)/2)]
+      inv_loci <- temppop[, (length(loci.imp)/2)+1:(length(loci.imp)/2)]
+    } else if (epi_flag == "alter") {
+      dir_loci <- temppop[, seq(1, length(loci.imp), by = 2)]
+      inv_loci <- temppop[, seq(2, length(loci.imp), by = 2)]
+    }
+    
+    cond1 <- (dir_loci == 2 & inv_loci != 1) | (dir_loci == 0 & inv_loci != 1)
+    cond2 <- (dir_loci == 1 & inv_loci != 1) | (dir_loci != 1 & inv_loci == 1)
+    cond3 <- (dir_loci == 1 & inv_loci == 1)
+    
+    phenos <- baseval + rowSums(2 * cond1 + 0 * cond2 + 4 * cond3)
+  }
+  
+  if(arch == "axd") {
+    if (epi_flag == "half") {
+      dir_loci <- temppop[, 1:(length(loci.imp)/2)]
+      inv_loci <- temppop[, (length(loci.imp)/2)+1:(length(loci.imp)/2)]
+    } else if (epi_flag == "alter") {
+      dir_loci <- temppop[, seq(1, length(loci.imp), by = 2)]
+      inv_loci <- temppop[, seq(2, length(loci.imp), by = 2)]
+    }
+    
+    cond1 <- (dir_loci == 2 & inv_loci == 2) | (dir_loci == 0 & inv_loci == 0)
+    cond2 <- (dir_loci == 2 & inv_loci == 0) | (dir_loci == 0 & inv_loci == 2)
+    cond3 <- (dir_loci == 1 | inv_loci == 1)
+    
     phenos <- baseval + rowSums(4 * cond1 + 0 * cond2 + 2 * cond3)
   }
   
@@ -159,7 +192,7 @@ GetArch <- function(pop, loci.imp, phenos) {
   
   # Epistasis
   # Precompute pairs of indices for interaction terms
-  if (sign_flag == "alter") {
+  if (epi_flag == "alter") {
     indices <- seq(1, ncol(pop), by = 2)
   } else {
     half_cols <- ncol(pop) / 2
@@ -167,9 +200,9 @@ GetArch <- function(pop, loci.imp, phenos) {
   }
   
   # Compute epistatic interaction matrices
-  e_mat_aa <- a_mat[, indices] * a_mat[, indices + ifelse(sign_flag == "alter", 1, half_cols)]
-  e_mat_ad <- a_mat[, indices] * d_mat[, indices + ifelse(sign_flag == "alter", 1, half_cols)]
-  e_mat_dd <- d_mat[, indices] * d_mat[, indices + ifelse(sign_flag == "alter", 1, half_cols)]
+  e_mat_aa <- a_mat[, indices] * a_mat[, indices + ifelse(epi_flag == "alter", 1, half_cols)]
+  e_mat_ad <- a_mat[, indices] * d_mat[, indices + ifelse(epi_flag == "alter", 1, half_cols)]
+  e_mat_dd <- d_mat[, indices] * d_mat[, indices + ifelse(epi_flag == "alter", 1, half_cols)]
   
   fit <- lm(phenos ~ a_mat + d_mat + e_mat_aa + e_mat_ad + e_mat_dd)
   R2ade <- summary(fit)$adj.r.squared
@@ -177,13 +210,13 @@ GetArch <- function(pop, loci.imp, phenos) {
   return(c(R2a, R2ad, R2ade))
 }
 
-SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, sign_flag, verbose) {
+SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose) {
   pop <- GetPopulation(N, loci)
   avg_phenos <- numeric(gen)
   lm_arch <- matrix(NA, nrow = gen, ncol = 3)
   for (generation in 1:gen) {
     pop <- MutatePop(pop, mu)
-    phenos <- GetPheno(pop, loci.imp, baseval, arch, sign_flag)
+    phenos <- GetPheno(pop, loci.imp, baseval, arch, epi_flag)
     avg_phenos[generation] <- mean(phenos)
     lm_arch[generation, ] <- GetArch(pop, loci.imp, phenos)
     w <- GetFit(phenos, opt, sigma)
@@ -202,63 +235,162 @@ iter <- 5
 pheno <- add <- dom <- epi <- matrix(NA, nrow = iter, ncol = gen)
 for (i in 1:iter) {
   print(i)
-  simulation_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, sign_flag, verbose=F)
+  simulation_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose=F)
   add[i,] <- simulation_result$lm_arch[,1]
   dom[i,] <- (simulation_result$lm_arch[,2]-simulation_result$lm_arch[,1])
   epi[i,] <- (simulation_result$lm_arch[,3]-simulation_result$lm_arch[,2])
   pheno[i,] <- simulation_result$avg_phenos
 }
 
-plot(colMeans(epi), type = "l", col = rgb(0.06,0.24,0.49,0.8), ylim = c(0, 1), lwd = 3)
-lines(colMeans(add), col = rgb(0.89,0.34,0.18,0.8), lwd = 3)
-lines(colMeans(pheno)/20, col = rgb(0.45,0.66,0.46,0.8), lwd = 3)
+df <- data.frame(
+  Generation = 1:gen,
+  Epistasis = colMeans(epi, na.rm = TRUE),
+  Additive = colMeans(add, na.rm = TRUE),
+  Dominance = colMeans(add, na.rm = TRUE),
+  Phenotype = colMeans(pheno, na.rm = TRUE) / 20  # Scaling as per original code
+)
+df_long <- df %>%
+  pivot_longer(
+    cols = c(Epistasis, Additive, Phenotype),
+    names_to = "Component",
+    values_to = "Fitness"
+  )
 
+colors <- wes_palette("FantasticFox1", 3, type = "continuous")
+names(colors) <- c("Epistasis", "Additive", "Phenotype")
+
+ggplot(df_long, aes(x = Generation, y = Fitness, color = Component)) +
+  geom_line(size = 1.2) +
+  scale_color_manual(
+    values = colors,
+    name = "Values",
+    labels = c("Additive", "Epistasis", "Phenotype")
+  ) +
+  labs(
+    x = "Generation",
+    y = "Proportion of Total Variation"
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    sec.axis = sec_axis(~ . * 20, name = "Phenotype")
+  ) +
+  theme_minimal() +
+  theme(
+    panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    axis.title.y = element_text(size = 12),
+    axis.title.y.right = element_text(size = 12),
+    axis.title.x = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  )
 
 
 # Compare selection to epistasis eq MEAN
-num_sigma <- 10
-iter <- 1
-sigma_values <- seq(1, 10, length.out = num_sigma)
-epi_final_values <- numeric(num_sigma)
 
-for (s in seq_along(sigma_values)) {
-  
-  sigma_now <- sigma_values[s]
+num_sigma <- 100
+iter <- 200
+sigma_values <- seq(1, 10, length.out = num_sigma)
+colors <- wes_palette("FantasticFox1", 3, type = "continuous")
+names(colors) <- c("Epistasis", "Phenotype", "Additive")
+
+results <- mclapply(sigma_values, function(sigma_now) {
   final_epi_reps <- numeric(iter)
-  print(s)
-  
-  for (i in 1:iter) {
-    sim_result <- SimulateGenerations(N, 
-                                      loci, 
-                                      mu, 
-                                      baseval, 
-                                      loci.imp, 
-                                      opt, 
-                                      gen, 
-                                      sigma_now, 
-                                      arch, 
-                                      sign_flag, 
-                                      verbose = FALSE)
+  for(i in 1:iter){
+    sim_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma_now, arch, epi_flag, verbose = FALSE)
     epi_values <- sim_result$lm_arch[,3] - sim_result$lm_arch[,2]
     final_epi_reps[i] <- epi_values[gen]
   }
-  epi_final_values[s] <- mean(final_epi_reps)
-}
+  mean_epi <- mean(final_epi_reps)
+  sd_epi <- sd(final_epi_reps)
+  data.frame(sigma = sigma_now, mean_epi = mean_epi, sd_epi = sd_epi)
+}, mc.cores = detectCores())
+foo <- results
+# results <- readRDS("axa_by_sigma")
+df_summary <- do.call(rbind, results) %>%
+  mutate(
+    ymin = pmax(mean_epi - sd_epi, 0),
+    ymax = pmin(mean_epi + sd_epi, 1)
+  )
 
-plot(sigma_values, epi_final_values, 
-     type = "l", 
-     xlab = expression(sigma), 
-     ylab = "Equilibrium Epistasis",
-     main = "Equilibrium Epistasis vs. Sigma")
+ggplot(df_summary, aes(x = sigma, y = mean_epi)) +
+  geom_line(color = colors["Additive"], size = 1.2) +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax), fill = colors["Additive"], alpha = 0.2) +
+  labs(
+    x = expression(sigma),
+    y = "Proportion of Total Variation",
+    title = "Equilibrium Epistasis vs. Sigma"
+  ) +
+  scale_y_continuous(
+    limits = c(min(df_summary$ymin), 1)
+  ) +
+  scale_x_continuous(
+    breaks = seq(1, 10, 2)
+  ) +
+  theme_minimal() +
+  theme(
+    panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  )
 
 
+# Plot FITNESS FUNCITON
+# plot(GetFit(obs=seq(from=0,to=20, length.out=100), 10, sigma=1)~seq(from=0,to=20, length.out=100), type="l")
+
+library(ggplot2)
+library(dplyr)
+library(wesanderson)
+
+df <- expand.grid(
+  sigma = 1:10,
+  obs   = seq(0, 20, length.out = 100)
+) %>%
+  mutate(fitness = GetFit(obs, 10, sigma))
+
+cols <- wes_palette("FantasticFox1", 10, type = "continuous")
+
+ggplot(df, aes(x = obs, y = fitness, color = factor(sigma), group = sigma)) +
+  geom_line(size = 1.2) +
+  geom_vline(aes(linetype = "Optimal Phenotype"), linetype = "dashed", xintercept = 10, color = "black", size = 0.8) +
+  scale_color_manual(
+    values = cols,
+    name = "Sigma",
+    labels = paste0("σ = ", 1:10),
+    guide = guide_legend(order = 2)
+  ) +
+  scale_linetype_manual(
+    name = "Optimal Phenotype",
+    values = "dashed",
+    guide = guide_legend(order = 1)
+  ) +
+  scale_x_continuous(
+    limits = c(0, 20),
+    breaks = seq(0, 20, 5),
+    labels = seq(-10, 10, 5)
+  ) +
+  labs(x = "Deviation from Optimal Phenotype", y = "Fitness") +
+  ylim(0, 1) +
+  theme_minimal() +
+  theme(
+    panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
+    legend.position = "right",
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    axis.title = element_text(size = 12),
+    axis.text = element_text(size = 10)
+  )
 
 
 # Compare selection to epistasis eq ACROSS GENERATIONS
 library(viridis)
-iter <- 100
+iter <- 2
 sigma_values <- seq(1, 10, length.out = 10)
-cols <- viridis(length(sigma_values))
+cols <- viridis(length(sigma_values), option = "magma")
 plot(1:gen, 
      rep(NA, gen), 
      type = "n", 
@@ -280,7 +412,7 @@ for (s in seq_along(sigma_values)) {
                                       gen, 
                                       sigma_now, 
                                       arch, 
-                                      sign_flag, 
+                                      epi_flag, 
                                       verbose = FALSE)
     epi_data[i, ] <- sim_result$lm_arch[,3] - sim_result$lm_arch[,2]
   }
@@ -293,7 +425,3 @@ legend("bottomright",
        col = cols, 
        lty = 1, 
        lwd = 2)
-
-
-# snippet
-# plot(GetFit(obs=seq(from=0,to=20, length.out=100), 10, sigma=1)~seq(from=0,to=20, length.out=100))
