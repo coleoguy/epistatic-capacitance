@@ -12,7 +12,7 @@ loci.imp <- sort(sample(1:loci, loci/10))
 opt <- 10
 sigma <- 10
 gen <- 100
-arch <- "dxd" # add, axa, axd, dxa, dxd, inc, dec
+arch <- "axd" # add, axa, axd, dxa, dxd, inc, dec
 sag <- 1.1
 epi_flag <- "alter" # half, alter
 ###### End Starting Conditions #########
@@ -99,7 +99,7 @@ GetPheno <- function(pop, loci.imp, baseval, arch, epi_flag){
       inv_loci <- temppop[, seq(2, length(loci.imp), by = 2)]
     }
     
-    cond1 <- (dir_loci == 2 & inv_loci != 1) | (dir_loci == 0 & inv_loci != 1)
+    cond1 <- (dir_loci == 2 & inv_loci != 1) | (dir_loci == 0 & inv_loci != 1) | (dir_loci != 1 & inv_loci == 2) | (dir_loci != 1 & inv_loci == 0)
     cond2 <- (dir_loci == 1 & inv_loci != 1) | (dir_loci != 1 & inv_loci == 1)
     cond3 <- (dir_loci == 1 & inv_loci == 1)
     
@@ -115,11 +115,13 @@ GetPheno <- function(pop, loci.imp, baseval, arch, epi_flag){
       inv_loci <- temppop[, seq(2, length(loci.imp), by = 2)]
     }
     
-    cond1 <- (dir_loci == 2 & inv_loci == 2) | (dir_loci == 0 & inv_loci == 0)
-    cond2 <- (dir_loci == 2 & inv_loci == 0) | (dir_loci == 0 & inv_loci == 2)
-    cond3 <- (dir_loci == 1 | inv_loci == 1)
-    
-    phenos <- baseval + rowSums(4 * cond1 + 0 * cond2 + 2 * cond3)
+    cond1 <- (dir_loci == 2 & inv_loci != 1)
+    cond2 <- (dir_loci == 1)
+    cond3 <- (dir_loci == 0 & inv_loci != 1)
+    cond4 <- (dir_loci == 2 & inv_loci == 1)
+    cond5 <- (dir_loci == 0 & inv_loci != 1)
+      
+    phenos <- baseval + rowSums(1 * cond1 + 2 * cond2 + 3 * cond3 + 4 * cond4 + 0 * cond5)
   }
   
   if(arch == "inc") {
@@ -306,8 +308,7 @@ results <- mclapply(sigma_values, function(sigma_now) {
   sd_epi <- sd(final_epi_reps)
   data.frame(sigma = sigma_now, mean_epi = mean_epi, sd_epi = sd_epi)
 }, mc.cores = detectCores())
-foo <- results
-# results <- readRDS("axa_by_sigma")
+
 df_summary <- do.call(rbind, results) %>%
   mutate(
     ymin = pmax(mean_epi - sd_epi, 0),
