@@ -21,8 +21,8 @@ epi_flag <- "alter" # half, alter
 
 GetPopulation <- function(N,loci){
 
-  pop <- matrix(sample(1:4, N*loci, replace=T), N, loci)
-  #pop <- matrix(rep(4, N*loci), N, loci)
+  #pop <- matrix(sample(1:4, N*loci, replace=T), N, loci)
+  pop <- matrix(rep(4, N*loci), N, loci)
   #pop <- matrix(rep(4, N*loci), N, loci)
 
   # 0,0 = 1
@@ -233,7 +233,7 @@ SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma,
 ###### ANALYSIS #########
 
 # SINGLE SET OF PARAMETERS
-iter <- 5
+iter <- 20
 pheno <- add <- dom <- epi <- matrix(NA, nrow = iter, ncol = gen)
 for (i in 1:iter) {
   print(i)
@@ -261,16 +261,22 @@ df_long <- df %>%
 colors <- wes_palette("FantasticFox1", 3, type = "continuous")
 names(colors) <- c("Epistasis", "Additive", "Phenotype")
 
-ggplot(df_long, aes(x = Generation, y = Fitness, color = Component)) +
+ggplot(df_long, aes(x = Generation, y = Fitness, color = Component, linetype = Component)) +
   geom_line(size = 1.2) +
   scale_color_manual(
     values = colors,
     name = "Values",
     labels = c("Additive", "Epistasis", "Phenotype")
   ) +
+  scale_linetype_manual(
+    values = c("Additive" = "solid", "Epistasis" = "solid", "Phenotype" = "dashed"),
+    name = "Values",
+    labels = c("Additive", "Epistasis", "Phenotype")
+  ) +
   labs(
     x = "Generation",
-    y = "Proportion of Total Variation"
+    y = "Proportion of Total Variation",
+    title = "Simulation Variables Across Generations"
   ) +
   scale_y_continuous(
     limits = c(0, 1),
@@ -280,13 +286,76 @@ ggplot(df_long, aes(x = Generation, y = Fitness, color = Component)) +
   theme(
     panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
     legend.position = "right",
+    plot.title = element_text(size = 20),
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 10),
-    axis.title.y = element_text(size = 12),
-    axis.title.y.right = element_text(size = 12),
-    axis.title.x = element_text(size = 12),
-    axis.text = element_text(size = 10)
+    axis.title.y = element_text(size = 16),
+    axis.title.x = element_text(size = 16),
+    axis.text = element_text(size = 14)
   )
+
+
+# Parameters
+iter <- 5
+gen <- 200
+sigma <- 5
+architectures <- c("axa", "axd", "dxd")
+
+# Placeholder for results
+all_results <- list()
+
+for (arch in architectures) {
+  # Initialize matrices for the current architecture
+  pheno <- add <- dom <- epi <- matrix(NA, nrow = iter, ncol = gen)
+  
+  # Run simulations for the current architecture
+  for (i in 1:iter) {
+    print(paste("Architecture:", arch, "- Iteration:", i))
+    simulation_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose = FALSE)
+    add[i, ] <- simulation_result$lm_arch[, 1]
+    dom[i, ] <- (simulation_result$lm_arch[, 2] - simulation_result$lm_arch[, 1])
+    epi[i, ] <- (simulation_result$lm_arch[, 3] - simulation_result$lm_arch[, 2])
+    pheno[i, ] <- simulation_result$avg_phenos
+  }
+  
+  # Store results for epistasis
+  all_results[[arch]] <- data.frame(
+    Generation = 1:gen,
+    Epistasis = colMeans(epi, na.rm = TRUE),
+    Architecture = arch
+  )
+}
+
+# Combine results from all architectures into a single data frame
+combined_results <- do.call(rbind, all_results)
+
+# Plot Epistasis across architectures
+colors <- wes_palette("FantasticFox1", length(architectures), type = "continuous")
+names(colors) <- architectures
+
+ggplot(combined_results, aes(x = Generation, y = Epistasis, color = Architecture)) +
+  geom_line(size = 1.2) +
+  scale_color_manual(
+    values = colors,
+    name = "Architecture"
+  ) +
+  labs(
+    x = "Generation",
+    y = "Mean Epistasis",
+    title = "Epistasis Across Generations for Different Architectures"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
+    legend.position = "right",
+    plot.title = element_text(size = 20),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    axis.title.y = element_text(size = 16),
+    axis.title.x = element_text(size = 16),
+    axis.text = element_text(size = 14)
+  )
+
 
 
 # Compare selection to epistasis eq MEAN
@@ -309,22 +378,22 @@ results <- mclapply(sigma_values, function(sigma_now) {
   data.frame(sigma = sigma_now, mean_epi = mean_epi, sd_epi = sd_epi)
 }, mc.cores = detectCores())
 
+results <- readRDS("axa.rds")
 df_summary <- do.call(rbind, results) %>%
   mutate(
     ymin = pmax(mean_epi - sd_epi, 0),
     ymax = pmin(mean_epi + sd_epi, 1)
   )
-
 ggplot(df_summary, aes(x = sigma, y = mean_epi)) +
-  geom_line(color = colors["Additive"], size = 1.2) +
-  geom_ribbon(aes(ymin = ymin, ymax = ymax), fill = colors["Additive"], alpha = 0.2) +
+  geom_line(color = colors["Epistasis"], size = 1.2) +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax), fill = colors["Epistasis"], alpha = 0.2) +
   labs(
-    x = expression(sigma),
-    y = "Proportion of Total Variation",
-    title = "Equilibrium Epistasis vs. Sigma"
+    x = "Strength of Selection",
+    y = "Epistatic Variation",
+    title = "Additive by Additive"
   ) +
   scale_y_continuous(
-    limits = c(min(df_summary$ymin), 1)
+    limits = c(0, 1)
   ) +
   scale_x_continuous(
     breaks = seq(1, 10, 2)
@@ -333,10 +402,71 @@ ggplot(df_summary, aes(x = sigma, y = mean_epi)) +
   theme(
     panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
     legend.position = "right",
+    plot.title = element_text(size = 20),
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10)
+    axis.title = element_text(size = 16),
+    axis.text = element_text(size = 14)
+  )
+results <- readRDS("axd.rds")
+df_summary <- do.call(rbind, results) %>%
+  mutate(
+    ymin = pmax(mean_epi - sd_epi, 0),
+    ymax = pmin(mean_epi + sd_epi, 1)
+  )
+ggplot(df_summary, aes(x = sigma, y = mean_epi)) +
+  geom_line(color = colors["Phenotype"], size = 1.2) +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax), fill = colors["Phenotype"], alpha = 0.2) +
+  labs(
+    x = "Strength of Selection",
+    y = "Epistatic Variation",
+    title = "Additive by Dominance"
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1)
+  ) +
+  scale_x_continuous(
+    breaks = seq(1, 10, 2)
+  ) +
+  theme_minimal() +
+  theme(
+    panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
+    legend.position = "right",
+    plot.title = element_text(size = 20),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    axis.title = element_text(size = 16),
+    axis.text = element_text(size = 14)
+  )
+results <- readRDS("dxd.rds")
+df_summary <- do.call(rbind, results) %>%
+  mutate(
+    ymin = pmax(mean_epi - sd_epi, 0),
+    ymax = pmin(mean_epi + sd_epi, 1)
+  )
+ggplot(df_summary, aes(x = sigma, y = mean_epi)) +
+  geom_line(color = colors["Additive"], size = 1.2) +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax), fill = colors["Additive"], alpha = 0.2) +
+  labs(
+    x = "Strength of Selection",
+    y = "Epistatic Variation",
+    title = "Dominance by Dominance"
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1)
+  ) +
+  scale_x_continuous(
+    breaks = seq(1, 10, 2)
+  ) +
+  theme_minimal() +
+  theme(
+    panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
+    legend.position = "right",
+    plot.title = element_text(size = 20),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    axis.title = element_text(size = 16),
+    axis.text = element_text(size = 14)
   )
 
 
@@ -361,7 +491,7 @@ ggplot(df, aes(x = obs, y = fitness, color = factor(sigma), group = sigma)) +
   scale_color_manual(
     values = cols,
     name = "Sigma",
-    labels = paste0("σ = ", 1:10),
+    labels = paste0("s = ", 1:10),
     guide = guide_legend(order = 2)
   ) +
   scale_linetype_manual(
@@ -374,16 +504,18 @@ ggplot(df, aes(x = obs, y = fitness, color = factor(sigma), group = sigma)) +
     breaks = seq(0, 20, 5),
     labels = seq(-10, 10, 5)
   ) +
-  labs(x = "Deviation from Optimal Phenotype", y = "Fitness") +
+  labs(x = "Deviation from Optimal Phenotype", y = "Fitness",
+       title = "Effect of Sigma (Strength of Selection) On Fitness of Phenotypes") +
   ylim(0, 1) +
   theme_minimal() +
   theme(
     panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
     legend.position = "right",
+    plot.title = element_text(size = 20),
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 10),
-    axis.title = element_text(size = 12),
-    axis.text = element_text(size = 10)
+    axis.title = element_text(size = 16),
+    axis.text = element_text(size = 14)
   )
 
 
