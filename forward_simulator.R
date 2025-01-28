@@ -8,14 +8,16 @@ N <- 1000 #population
 loci <- 100 # positions on the genome 
 mu <- 10^-5 # human mutation rate 10^-9 for an individual nucleotide
 baseval <- 0 # this is a base minimum value for our phenotype
-loci.imp <- sort(sample(1:loci, loci/10))
-opt <- 10
+num.imp.loci <- 10
+loci.imp <- sort(sample(1:loci, num.imp.loci))
+opt <- num.imp.loci
 sigma <- 10
 gen <- 100
 arch <- "axd" # add, axa, axd, dxa, dxd, inc, dec
 sag <- 1.1
 epi_flag <- "alter" # half, alter
 ###### End Starting Conditions #########
+
 
 ###### FUNCTIONS #########
 
@@ -229,8 +231,30 @@ SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma,
 }
 
 
-
 ###### ANALYSIS #########
+
+# NUMBE OF LOCI AND Ve
+
+iter <- 4 #200
+loci_range <- seq(1, 10, length.out = num_sigma) #fix to get every even number between 2 and 100
+arch <- "axa"
+
+results <- mclapply(loci_range, function(l) {
+  final_epi_reps <- numeric(iter)
+  for(i in 1:iter){
+    loci.imp <- sort(sample(1:loci, l))
+    sim_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose = FALSE) #try with opt as it is or replace with l to scale the opt to the new phenotype range
+    epi_values <- sim_result$lm_arch[,3] - sim_result$lm_arch[,2]
+    final_epi_reps[i] <- epi_values[gen]
+  }
+  mean_epi <- mean(final_epi_reps)
+  sd_epi <- sd(final_epi_reps)
+  data.frame(loci = l, mean_epi = mean_epi, sd_epi = sd_epi)
+}, mc.cores = 4)
+
+
+
+
 
 # SINGLE SET OF PARAMETERS
 iter <- 20
