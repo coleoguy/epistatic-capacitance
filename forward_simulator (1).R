@@ -2,7 +2,9 @@
 ## Andres Barboza P. andresdbp@tamu.edu
 ## April 16, 2024
 
-
+library(parallel)
+library(dplyr)
+library(ggplot2)
 ###### Starting Conditions #########
 N <- 1000 #population
 loci <- 100 # positions on the genome 
@@ -11,9 +13,9 @@ baseval <- 0 # this is a base minimum value for our phenotype
 num.imp.loci <- 10
 loci.imp <- sort(sample(1:loci, num.imp.loci))
 opt <- num.imp.loci
-sigma <- 10
+sigma <- num.imp.loci/2
 gen <- 100
-arch <- axd # add, axa, axd, dxa, dxd, inc, dec
+arch <- "axd" # add, axa, axd, dxa, dxd, inc, dec
 sag <- 1.1
 epi_flag <- "alter" # half, alter
 ###### End Starting Conditions #########
@@ -235,14 +237,19 @@ SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma,
 
 # NUMBE OF LOCI AND Ve
 
-iter <- 200
-loci_range <- seq(1, 10, length.out = num_sigma) #fix to get every even number between 2 and 100
-arch <- "axa"
+iter <- 2 # change to 200
+loci_range <- c(4,10,20,40) #STEP 1: change to get a vector of every even number between 2 and 100
 
+#STEP 2: make a script for dxd and run them on the workstation. Change mc.cores to 50
+# save a file after running the sim in case it fails, save as df_summary
+
+arch <- "axa"
 results <- mclapply(loci_range, function(l) {
   final_epi_reps <- numeric(iter)
   for(i in 1:iter){
     loci.imp <- sort(sample(1:loci, l))
+    opt <- l
+    sigma <- l/2
     sim_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose = FALSE) #try with opt as it is or replace with l to scale the opt to the new phenotype range
     epi_values <- sim_result$lm_arch[,3] - sim_result$lm_arch[,2]
     final_epi_reps[i] <- epi_values[gen]
@@ -252,8 +259,57 @@ results <- mclapply(loci_range, function(l) {
   data.frame(loci = l, mean_epi = mean_epi, sd_epi = sd_epi)
 }, mc.cores = 4)
 
+arch <- "axd"
+results <- mclapply(loci_range, function(l) {
+  final_epi_reps <- numeric(iter)
+  for(i in 1:iter){
+    loci.imp <- sort(sample(1:loci, l))
+    opt <- l
+    sigma <- l/2
+    sim_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose = FALSE) #try with opt as it is or replace with l to scale the opt to the new phenotype range
+    epi_values <- sim_result$lm_arch[,3] - sim_result$lm_arch[,2]
+    final_epi_reps[i] <- epi_values[gen]
+  }
+  mean_epi <- mean(final_epi_reps)
+  sd_epi <- sd(final_epi_reps)
+  data.frame(loci = l, mean_epi = mean_epi, sd_epi = sd_epi)
+}, mc.cores = 4)
 
+#df_summary script
+df_summary <- do.call(rbind, results) %>%
+  mutate(
+    ymin = pmax(mean_epi - sd_epi, 0),
+    ymax = pmin(mean_epi + sd_epi, 1)
+  )
 
+# STEP 3: adapt this plotting script to plot the output
+#plotting script
+colors <- wes_palette("FantasticFox1", 3, type = "continuous")
+names(colors) <- c("Epistasis", "Phenotype", "Additive")
+ggplot(df_summary, aes(x = sigma, y = mean_epi)) +
+  geom_line(color = colors["Epistasis"], size = 1.2) +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax), fill = colors["Epistasis"], alpha = 0.2) +
+  labs(
+    x = "Strength of Selection",
+    y = "Epistatic Variation",
+    title = "Additive by Additive"
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1)
+  ) +
+  scale_x_continuous(
+    breaks = seq(1, 10, 2)
+  ) +
+  theme_minimal() +
+  theme(
+    panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
+    legend.position = "right",
+    plot.title = element_text(size = 20),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    axis.title = element_text(size = 16),
+    axis.text = element_text(size = 14)
+  )
 
 
 # SINGLE SET OF PARAMETERS
