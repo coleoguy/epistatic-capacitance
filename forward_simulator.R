@@ -2,6 +2,11 @@
 ## Andres Barboza P. andresdbp@tamu.edu
 ## April 16, 2024
 
+library(parallel)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(wesanderson)
 
 ###### Starting Conditions #########
 N <- 1000 #population
@@ -11,7 +16,7 @@ baseval <- 0 # this is a base minimum value for our phenotype
 num.imp.loci <- 10
 loci.imp <- sort(sample(1:loci, num.imp.loci))
 opt <- num.imp.loci
-sigma <- 10
+sigma <- num.imp.loci/2
 gen <- 100
 arch <- "axd" # add, axa, axd, dxa, dxd, inc, dec
 sag <- 1.1
@@ -230,22 +235,29 @@ SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma,
   return(list(final_population = pop, avg_phenos = avg_phenos, lm_arch = lm_arch))
 }
 
-
 ###### ANALYSIS #########
 
+# Andres (Mar 6) - I have removed all the code that was not being used.
+# I also moved the new plotting code in the "NUMBER OF LOCI AND Ve".
+# Also, now the results are in the "results/" folder inside of the github folder.
+# The rest of the code is just the code necessary to make all the plots in the poster.
+# Remeber to load the libraries at the beginning of the code, it is easier than having the libraries all over the code.
+# Let me know if you have any questions! 
 
-######################AXA
+#### NUMBER OF LOCI AND Ve ####
+
 iter <- 200
-loci_range <- seq(2, 100, by = 2)
-print(loci_range)
+loci_range <- seq(4, 100, by = 2)
 
 arch <- "axa"
-
-results <- mclapply(loci_range, function(l) {
+results_axa <- mclapply(loci_range, function(l) {
   final_epi_reps <- numeric(iter)
   for(i in 1:iter){
     loci.imp <- sort(sample(1:loci, l))
-    sim_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose = FALSE) #try with opt as it is or replace with l to scale the opt to the new phenotype range
+    opt <- l
+    sigma <- l/2
+    sim_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt,
+                                      gen, sigma, arch, epi_flag, verbose = FALSE)
     epi_values <- sim_result$lm_arch[,3] - sim_result$lm_arch[,2]
     final_epi_reps[i] <- epi_values[gen]
   }
@@ -253,55 +265,21 @@ results <- mclapply(loci_range, function(l) {
   sd_epi <- sd(final_epi_reps)
   data.frame(loci = l, mean_epi = mean_epi, sd_epi = sd_epi)
 }, mc.cores = 50)
-
-
-# SINGLE SET OF PARAMETERS
-iter <- 200
-pheno <- add <- dom <- epi <- matrix(NA, nrow = iter, ncol = gen)
-for (i in 1:iter) {
-  print(i)
-  simulation_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose=F)
-  add[i,] <- simulation_result$lm_arch[,1]
-  dom[i,] <- (simulation_result$lm_arch[,2]-simulation_result$lm_arch[,1])
-  epi[i,] <- (simulation_result$lm_arch[,3]-simulation_result$lm_arch[,2])
-  pheno[i,] <- simulation_result$avg_phenos
-}
-
-df <- data.frame(
-  Generation = 1:gen,
-  Epistasis = colMeans(epi, na.rm = TRUE),
-  Additive = colMeans(add, na.rm = TRUE),
-  Dominance = colMeans(add, na.rm = TRUE),
-  Phenotype = colMeans(pheno, na.rm = TRUE) / 20  # Scaling as per original code
-)
-df_long <- df %>%
-  pivot_longer(
-    cols = c(Epistasis, Additive, Phenotype),
-    names_to = "Component",
-    values_to = "Fitness"
+df_axa <- do.call(rbind, results_axa) %>%
+  mutate(
+    ymin = pmax(mean_epi - sd_epi, 0),
+    ymax = pmin(mean_epi + sd_epi, 1)
   )
-
-
-df_summary <- summary(df)
-print(df_summary)
-sink("df_summary.txt")
-print(df_summary)
-sink()
-
-
-#############AXD
-
-iter <- 200
-loci_range <- seq(2, 100, by = 2)
-print(loci_range)
 
 arch <- "axd"
-
-results <- mclapply(loci_range, function(l) {
+results_axd <- mclapply(loci_range, function(l) {
   final_epi_reps <- numeric(iter)
   for(i in 1:iter){
     loci.imp <- sort(sample(1:loci, l))
-    sim_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose = FALSE) #try with opt as it is or replace with l to scale the opt to the new phenotype range
+    opt <- l
+    sigma <- l/2
+    sim_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt,
+                                      gen, sigma, arch, epi_flag, verbose = FALSE)
     epi_values <- sim_result$lm_arch[,3] - sim_result$lm_arch[,2]
     final_epi_reps[i] <- epi_values[gen]
   }
@@ -309,210 +287,68 @@ results <- mclapply(loci_range, function(l) {
   sd_epi <- sd(final_epi_reps)
   data.frame(loci = l, mean_epi = mean_epi, sd_epi = sd_epi)
 }, mc.cores = 50)
-
-
-# SINGLE SET OF PARAMETERS
-iter <- 200
-pheno <- add <- dom <- epi <- matrix(NA, nrow = iter, ncol = gen)
-for (i in 1:iter) {
-  print(i)
-  simulation_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose=F)
-  add[i,] <- simulation_result$lm_arch[,1]
-  dom[i,] <- (simulation_result$lm_arch[,2]-simulation_result$lm_arch[,1])
-  epi[i,] <- (simulation_result$lm_arch[,3]-simulation_result$lm_arch[,2])
-  pheno[i,] <- simulation_result$avg_phenos
-}
-
-df <- data.frame(
-  Generation = 1:gen,
-  Epistasis = colMeans(epi, na.rm = TRUE),
-  Additive = colMeans(add, na.rm = TRUE),
-  Dominance = colMeans(add, na.rm = TRUE),
-  Phenotype = colMeans(pheno, na.rm = TRUE) / 20  # Scaling as per original code
-)
-df_long <- df %>%
-  pivot_longer(
-    cols = c(Epistasis, Additive, Phenotype),
-    names_to = "Component",
-    values_to = "Fitness"
+df_axd <- do.call(rbind, results_axd) %>%
+  mutate(
+    ymin = pmax(mean_epi - sd_epi, 0),
+    ymax = pmin(mean_epi + sd_epi, 1)
   )
-
-df_summary <- summary(df)
-print(df_summary)
-sink("df_summary.txt")
-print(df_summary)
-sink()
-
-
-
-
-##########DXD
-
-iter <- 200
-loci_range <- seq(2, 100, by = 2)
-print(loci_range)
 
 arch <- "dxd"
-
-results <- mclapply(loci_range, function(l) {
+results_dxd <- mclapply(loci_range, function(l) {
   final_epi_reps <- numeric(iter)
   for(i in 1:iter){
     loci.imp <- sort(sample(1:loci, l))
-    sim_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose = FALSE) #try with opt as it is or replace with l to scale the opt to the new phenotype range
+    opt <- l
+    sigma <- l/2
+    sim_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt,
+                                      gen, sigma, arch, epi_flag, verbose = FALSE)
     epi_values <- sim_result$lm_arch[,3] - sim_result$lm_arch[,2]
     final_epi_reps[i] <- epi_values[gen]
   }
   mean_epi <- mean(final_epi_reps)
   sd_epi <- sd(final_epi_reps)
   data.frame(loci = l, mean_epi = mean_epi, sd_epi = sd_epi)
-}, mc.cores = 50)
-
-
-# SINGLE SET OF PARAMETERS
-iter <- 200
-pheno <- add <- dom <- epi <- matrix(NA, nrow = iter, ncol = gen)
-for (i in 1:iter) {
-  print(i)
-  simulation_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose=F)
-  add[i,] <- simulation_result$lm_arch[,1]
-  dom[i,] <- (simulation_result$lm_arch[,2]-simulation_result$lm_arch[,1])
-  epi[i,] <- (simulation_result$lm_arch[,3]-simulation_result$lm_arch[,2])
-  pheno[i,] <- simulation_result$avg_phenos
-}
-
-df <- data.frame(
-  Generation = 1:gen,
-  Epistasis = colMeans(epi, na.rm = TRUE),
-  Additive = colMeans(add, na.rm = TRUE),
-  Dominance = colMeans(add, na.rm = TRUE),
-  Phenotype = colMeans(pheno, na.rm = TRUE) / 20  # Scaling as per original code
-)
-df_long <- df %>%
-  pivot_longer(
-    cols = c(Epistasis, Additive, Phenotype),
-    names_to = "Component",
-    values_to = "Fitness"
+}, mc.coresdf_dxd = 50)
+df_dxd <- do.call(rbind, results_dxd) %>%
+  mutate(
+    ymin = pmax(mean_epi - sd_epi, 0),
+    ymax = pmin(mean_epi + sd_epi, 1)
   )
 
 
-df_summary <- summary(df)
-print(df_summary)
-sink("df_summary.txt")
-print(df_summary)
-sink()
+## PLOT
+# Read data
+axa <- read.csv("results/df_axa.csv")
+axd <- read.csv("results/df_axd.csv")
+dxd <- read.csv("results/df_dxd.csv")
 
-
-
-
-##################DXA
-
-iter <- 200
-loci_range <- seq(2, 100, by = 2)
-print(loci_range)
-
-arch <- "dxa"
-
-results <- mclapply(loci_range, function(l) {
-  final_epi_reps <- numeric(iter)
-  for(i in 1:iter){
-    loci.imp <- sort(sample(1:loci, l))
-    sim_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose = FALSE) #try with opt as it is or replace with l to scale the opt to the new phenotype range
-    epi_values <- sim_result$lm_arch[,3] - sim_result$lm_arch[,2]
-    final_epi_reps[i] <- epi_values[gen]
-  }
-  mean_epi <- mean(final_epi_reps)
-  sd_epi <- sd(final_epi_reps)
-  data.frame(loci = l, mean_epi = mean_epi, sd_epi = sd_epi)
-}, mc.cores = 50)
-
-
-# SINGLE SET OF PARAMETERS
-iter <- 200
-pheno <- add <- dom <- epi <- matrix(NA, nrow = iter, ncol = gen)
-for (i in 1:iter) {
-  print(i)
-  simulation_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose=F)
-  add[i,] <- simulation_result$lm_arch[,1]
-  dom[i,] <- (simulation_result$lm_arch[,2]-simulation_result$lm_arch[,1])
-  epi[i,] <- (simulation_result$lm_arch[,3]-simulation_result$lm_arch[,2])
-  pheno[i,] <- simulation_result$avg_phenos
-}
-
-df <- data.frame(
-  Generation = 1:gen,
-  Epistasis = colMeans(epi, na.rm = TRUE),
-  Additive = colMeans(add, na.rm = TRUE),
-  Dominance = colMeans(add, na.rm = TRUE),
-  Phenotype = colMeans(pheno, na.rm = TRUE) / 20  # Scaling as per original code
+# Combine data into a single dataframe with an identifier
+axa$group <- "axa"
+axd$group <- "axd"
+dxd$group <- "dxd"
+data <- rbind(
+  axa[, c("loci", "mean_epi", "ymin", "ymax", "group")], 
+  axd[, c("loci", "mean_epi", "ymin", "ymax", "group")], 
+  dxd[, c("loci", "mean_epi", "ymin", "ymax", "group")]
 )
-df_long <- df %>%
-  pivot_longer(
-    cols = c(Epistasis, Additive, Phenotype),
-    names_to = "Component",
-    values_to = "Fitness"
-  )
 
-
-
-
-df_summary <- summary(df)
-print(df_summary)
-sink("df_summary.txt")
-print(df_summary)
-sink()
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+# Plot the data
 colors <- wes_palette("FantasticFox1", 3, type = "continuous")
-names(colors) <- c("Epistasis", "Additive", "Phenotype")
+names(colors) <- c("axa", "axd", "dxd")
 
-ggplot(df_long, aes(x = Generation, y = Fitness, color = Component, linetype = Component)) +
-  geom_line(size = 1.2) +
-  scale_color_manual(
-    values = colors,
-    name = "Values",
-    labels = c("Additive", "Epistasis", "Phenotype")
-  ) +
-  scale_linetype_manual(
-    values = c("Additive" = "solid", "Epistasis" = "solid", "Phenotype" = "dashed"),
-    name = "Values",
-    labels = c("Additive", "Epistasis", "Phenotype")
-  ) +
+ggplot(data, aes(x = loci, y = mean_epi, color = group, fill = group)) +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax), alpha = 0.2) +  # Shaded area
+  geom_line(size = 1.2) +  # Adjusted line thickness
+  geom_point(size = 2) +
   labs(
-    x = "Generation",
-    y = "Proportion of Total Variation",
-    title = "Simulation Variables Across Generations"
+    x = "Strength of Selection",
+    y = "Epistatic Variation",
+    title = "Additive by Additive"
   ) +
-  scale_y_continuous(
-    limits = c(0, 1),
-    sec.axis = sec_axis(~ . * 20, name = "Phenotype")
-  ) +
+  scale_color_manual(values = colors) +  # Apply custom colors to lines
+  scale_fill_manual(values = colors) +   # Apply custom colors to ribbons
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_x_continuous(breaks = seq(min(data$loci), max(data$loci), length.out = 5)) +
   theme_minimal() +
   theme(
     panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
@@ -520,76 +356,13 @@ ggplot(df_long, aes(x = Generation, y = Fitness, color = Component, linetype = C
     plot.title = element_text(size = 20),
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 10),
-    axis.title.y = element_text(size = 16),
-    axis.title.x = element_text(size = 16),
-    axis.text = element_text(size = 14)
-  )
-
-
-# Parameters
-iter <- 5
-gen <- 200
-sigma <- 5
-architectures <- c("axa", "axd", "dxd")
-
-# Placeholder for results
-all_results <- list()
-
-for (arch in architectures) {
-  # Initialize matrices for the current architecture
-  pheno <- add <- dom <- epi <- matrix(NA, nrow = iter, ncol = gen)
-  
-  # Run simulations for the current architecture
-  for (i in 1:iter) {
-    print(paste("Architecture:", arch, "- Iteration:", i))
-    simulation_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose = FALSE)
-    add[i, ] <- simulation_result$lm_arch[, 1]
-    dom[i, ] <- (simulation_result$lm_arch[, 2] - simulation_result$lm_arch[, 1])
-    epi[i, ] <- (simulation_result$lm_arch[, 3] - simulation_result$lm_arch[, 2])
-    pheno[i, ] <- simulation_result$avg_phenos
-  }
-  
-  # Store results for epistasis
-  all_results[[arch]] <- data.frame(
-    Generation = 1:gen,
-    Epistasis = colMeans(epi, na.rm = TRUE),
-    Architecture = arch
-  )
-}
-
-# Combine results from all architectures into a single data frame
-combined_results <- do.call(rbind, all_results)
-
-# Plot Epistasis across architectures
-colors <- wes_palette("FantasticFox1", length(architectures), type = "continuous")
-names(colors) <- architectures
-
-ggplot(combined_results, aes(x = Generation, y = Epistasis, color = Architecture)) +
-  geom_line(size = 1.2) +
-  scale_color_manual(
-    values = colors,
-    name = "Architecture"
-  ) +
-  labs(
-    x = "Generation",
-    y = "Mean Epistasis",
-    title = "Epistasis Across Generations for Different Architectures"
-  ) +
-  theme_minimal() +
-  theme(
-    panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
-    legend.position = "right",
-    plot.title = element_text(size = 20),
-    legend.title = element_text(size = 12),
-    legend.text = element_text(size = 10),
-    axis.title.y = element_text(size = 16),
-    axis.title.x = element_text(size = 16),
+    axis.title = element_text(size = 16),
     axis.text = element_text(size = 14)
   )
 
 
 
-# Compare selection to epistasis eq MEAN
+#### SELECTION AND Ve ####
 
 num_sigma <- 100
 iter <- 200
@@ -700,14 +473,71 @@ ggplot(df_summary, aes(x = sigma, y = mean_epi)) +
     axis.text = element_text(size = 14)
   )
 
+#### SELECTION AND Ve (3 types) ####
+# Parameters
+iter <- 5
+gen <- 200
+sigma <- 5
+architectures <- c("axa", "axd", "dxd")
 
-# Plot FITNESS FUNCITON
-# plot(GetFit(obs=seq(from=0,to=20, length.out=100), 10, sigma=1)~seq(from=0,to=20, length.out=100), type="l")
+# Placeholder for results
+all_results <- list()
 
-library(ggplot2)
-library(dplyr)
-library(wesanderson)
+for (arch in architectures) {
+  # Initialize matrices for the current architecture
+  pheno <- add <- dom <- epi <- matrix(NA, nrow = iter, ncol = gen)
+  
+  # Run simulations for the current architecture
+  for (i in 1:iter) {
+    print(paste("Architecture:", arch, "- Iteration:", i))
+    simulation_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose = FALSE)
+    add[i, ] <- simulation_result$lm_arch[, 1]
+    dom[i, ] <- (simulation_result$lm_arch[, 2] - simulation_result$lm_arch[, 1])
+    epi[i, ] <- (simulation_result$lm_arch[, 3] - simulation_result$lm_arch[, 2])
+    pheno[i, ] <- simulation_result$avg_phenos
+  }
+  
+  # Store results for epistasis
+  all_results[[arch]] <- data.frame(
+    Generation = 1:gen,
+    Epistasis = colMeans(epi, na.rm = TRUE),
+    Architecture = arch
+  )
+}
 
+# Combine results from all architectures into a single data frame
+combined_results <- do.call(rbind, all_results)
+
+# Plot Epistasis across architectures
+colors <- wes_palette("FantasticFox1", length(architectures), type = "continuous")
+names(colors) <- architectures
+
+ggplot(combined_results, aes(x = Generation, y = Epistasis, color = Architecture)) +
+  geom_line(size = 1.2) +
+  scale_color_manual(
+    values = colors,
+    name = "Architecture"
+  ) +
+  labs(
+    x = "Generation",
+    y = "Mean Epistasis",
+    title = "Epistasis Across Generations for Different Architectures"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
+    legend.position = "right",
+    plot.title = element_text(size = 20),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    axis.title.y = element_text(size = 16),
+    axis.title.x = element_text(size = 16),
+    axis.text = element_text(size = 14)
+  )
+
+
+
+#### FITNESS FUNCITON ####
 df <- expand.grid(
   sigma = 1:10,
   obs   = seq(0, 20, length.out = 100)
@@ -749,114 +579,64 @@ ggplot(df, aes(x = obs, y = fitness, color = factor(sigma), group = sigma)) +
     axis.text = element_text(size = 14)
   )
 
-
-# Compare selection to epistasis eq ACROSS GENERATIONS
-library(viridis)
-iter <- 2
-sigma_values <- seq(1, 10, length.out = 10)
-cols <- viridis(length(sigma_values), option = "magma")
-plot(1:gen, 
-     rep(NA, gen), 
-     type = "n", 
-     xlab = "Generation", 
-     ylab = "Mean Epistasis (colMeans of 100 iter)", 
-     ylim = c(0, 1))
-
-for (s in seq_along(sigma_values)) {
-  print(s)
-  sigma_now <- sigma_values[s]
-  epi_data <- matrix(NA, nrow = iter, ncol = gen)
-  for (i in 1:iter) {
-    sim_result <- SimulateGenerations(N, 
-                                      loci, 
-                                      mu, 
-                                      baseval, 
-                                      loci.imp, 
-                                      opt, 
-                                      gen, 
-                                      sigma_now, 
-                                      arch, 
-                                      epi_flag, 
-                                      verbose = FALSE)
-    epi_data[i, ] <- sim_result$lm_arch[,3] - sim_result$lm_arch[,2]
-  }
-  lines(1:gen, colMeans(epi_data), 
-        col = cols[s], 
-        lwd = 2)
+#### SIMULATION ACROSS GEN ####
+iter <- 20
+pheno <- add <- dom <- epi <- matrix(NA, nrow = iter, ncol = gen)
+for (i in 1:iter) {
+  print(i)
+  simulation_result <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose=F)
+  add[i,] <- simulation_result$lm_arch[,1]
+  dom[i,] <- (simulation_result$lm_arch[,2]-simulation_result$lm_arch[,1])
+  epi[i,] <- (simulation_result$lm_arch[,3]-simulation_result$lm_arch[,2])
+  pheno[i,] <- simulation_result$avg_phenos
 }
-legend("bottomright", 
-       legend = paste("Sigma =", round(sigma_values, 2)), 
-       col = cols, 
-       lty = 1, 
-       lwd = 2)
 
+df <- data.frame(
+  Generation = 1:gen,
+  Epistasis = colMeans(epi, na.rm = TRUE),
+  Additive = colMeans(add, na.rm = TRUE),
+  Dominance = colMeans(add, na.rm = TRUE),
+  Phenotype = colMeans(pheno, na.rm = TRUE) / 20  # Scaling as per original code
+)
+df_long <- df %>%
+  pivot_longer(
+    cols = c(Epistasis, Additive, Phenotype),
+    names_to = "Component",
+    values_to = "Fitness"
+  )
 
-library(ggplot2)
+colors <- wes_palette("FantasticFox1", 3, type = "continuous")
+names(colors) <- c("Epistasis", "Additive", "Phenotype")
 
-# Load data
-axa <- read.csv("df_axa.csv")
-axd <- read.csv("df_axd.csv")
-dxd <- read.csv("df_dxd.csv")
-
-# Ensure data frames have a common x-axis column, assuming 'Time' is the x-axis
-# If column names differ, adjust accordingly
-colnames(axa) <- c("Time", "Value")
-colnames(axd) <- c("Time", "Value")
-colnames(dxd) <- c("Time", "Value")
-
-# Add an identifier column
-axa$Series <- "axa"
-axd$Series <- "axd"
-dxd$Series <- "dxd"
-
-# Combine data
-combined_df <- rbind(axa, axd, dxd)
-
-# Convert Time column to numeric or date format if necessary
-combined_df$Time <- as.numeric(combined_df$Time)  # Change to as.Date() if date format is needed
-
-# Plot
-p <- ggplot(combined_df, aes(x = Time, y = Value, color = Series, group = Series)) +
-  geom_line() +
-  labs(title = "Three Data Series Plot", x = "Time", y = "Value") +
-  theme_minimal()
-
-print(p)
-
-
-
-library(ggplot2)
-
-# Load data
-axa <- read.csv("/mnt/data/df_axa.csv")
-axd <- read.csv("/mnt/data/df_axd.csv")
-dxd <- read.csv("/mnt/data/df_dxd.csv")
-
-# Ensure data frames have a common x-axis column, assuming first column is Time
-colnames(axa) <- c("Time", "Value")
-colnames(axd) <- c("Time", "Value")
-colnames(dxd) <- c("Time", "Value")
-
-# Add an identifier column
-axa$Series <- "axa"
-axd$Series <- "axd"
-dxd$Series <- "dxd"
-
-# Combine data
-combined_df <- rbind(axa, axd, dxd)
-
-# Convert Time column to numeric or date format if necessary
-combined_df$Time <- as.numeric(combined_df$Time)  # Change to as.Date() if date format is needed
-
-# Plot
-p <- ggplot(combined_df, aes(x = Time, y = Value, color = Series, group = Series)) +
-  geom_line() +
-  labs(title = "Three Data Series Plot", x = "Time", y = "Value") +
-  theme_minimal()
-
-print(p)
-
-
-
-
-
+ggplot(df_long, aes(x = Generation, y = Fitness, color = Component, linetype = Component)) +
+  geom_line(size = 1.2) +
+  scale_color_manual(
+    values = colors,
+    name = "Values",
+    labels = c("Additive", "Epistasis", "Phenotype")
+  ) +
+  scale_linetype_manual(
+    values = c("Additive" = "solid", "Epistasis" = "solid", "Phenotype" = "dashed"),
+    name = "Values",
+    labels = c("Additive", "Epistasis", "Phenotype")
+  ) +
+  labs(
+    x = "Generation",
+    y = "Proportion of Total Variation",
+    title = "Simulation Variables Across Generations"
+  ) +
+  scale_y_continuous(
+    limits = c(0, 1),
+    sec.axis = sec_axis(~ . * 20, name = "Phenotype")
+  ) +
+  theme_minimal() +
+  theme(
+    panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
+    legend.position = "right",
+    plot.title = element_text(size = 20),
+    legend.title = element_text(size = 12),
+    legend.text = element_text(size = 10),
+    axis.title.y = element_text(size = 16),
+    axis.title.x = element_text(size = 16),
+    axis.text = element_text(size = 14)
+  )
