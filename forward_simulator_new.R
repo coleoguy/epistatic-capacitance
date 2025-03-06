@@ -789,3 +789,74 @@ legend("bottomright",
        col = cols, 
        lty = 1, 
        lwd = 2)
+
+
+library(ggplot2)
+
+# Load data
+axa <- read.csv("df_axa.csv")
+axd <- read.csv("df_axd.csv")
+dxd <- read.csv("df_dxd.csv")
+
+# Ensure data frames have a common x-axis column, assuming 'Time' is the x-axis
+# If column names differ, adjust accordingly
+colnames(axa) <- c("Time", "Value")
+colnames(axd) <- c("Time", "Value")
+colnames(dxd) <- c("Time", "Value")
+
+# Add an identifier column
+axa$Series <- "axa"
+axd$Series <- "axd"
+dxd$Series <- "dxd"
+
+# Combine data
+combined_df <- rbind(axa, axd, dxd)
+
+# Convert Time column to numeric or date format if necessary
+combined_df$Time <- as.numeric(combined_df$Time)  # Change to as.Date() if date format is needed
+
+# Plot
+p <- ggplot(combined_df, aes(x = Time, y = Value, color = Series, group = Series)) +
+  geom_line() +
+  labs(title = "Three Data Series Plot", x = "Time", y = "Value") +
+  theme_minimal()
+
+print(p)
+
+
+
+library(ggplot2)
+
+# Load data
+axa <- read.csv("/mnt/data/df_axa.csv")
+axd <- read.csv("/mnt/data/df_axd.csv")
+dxd <- read.csv("/mnt/data/df_dxd.csv")
+
+# Ensure data frames have a common x-axis column, assuming first column is Time
+colnames(axa) <- c("Time", "Value")
+colnames(axd) <- c("Time", "Value")
+colnames(dxd) <- c("Time", "Value")
+
+# Add an identifier column
+axa$Series <- "axa"
+axd$Series <- "axd"
+dxd$Series <- "dxd"
+
+# Combine data
+combined_df <- rbind(axa, axd, dxd)
+
+# Convert Time column to numeric or date format if necessary
+combined_df$Time <- as.numeric(combined_df$Time)  # Change to as.Date() if date format is needed
+
+# Plot
+p <- ggplot(combined_df, aes(x = Time, y = Value, color = Series, group = Series)) +
+  geom_line() +
+  labs(title = "Three Data Series Plot", x = "Time", y = "Value") +
+  theme_minimal()
+
+print(p)
+
+
+
+
+
