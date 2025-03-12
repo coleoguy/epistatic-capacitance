@@ -317,9 +317,9 @@ df_dxd <- do.call(rbind, results_dxd) %>%
 # STEP 3: adapt this plotting script to plot the output
 #plotting script
 colors <- wes_palette("FantasticFox1", 3, type = "continuous")
-names(colors) <- c("Epistasisdf_dxd", "Phenotype", "Additive")
+names(colors) <- c("df_axa", "Phenotype", "Additive")
 ggplot(df_axa, aes(x = sigma, y = mean_epi)) +
-  geom_line(color = colors["Epistasis"], size = 1.2) +
+  geom_line(color = colors["df.axa"], size = 1.2) +
   geom_ribbon(aes(ymin = ymin, ymax = ymax), fill = colors["Epistasis"], alpha = 0.2) +
   labs(
     x = "Strength of Selection",
@@ -351,9 +351,9 @@ library(parallel)
 library(wesanderson)
 
 # Combine all data frames into one, adding an identifier column
-df_axa$arch <- "Additive by Additive"
-df_axd$arch <- "Additive by Dominant"
-df_dxd$arch <- "Dominant by Dominant"
+df_axa$Arch <- "Additive by Additive"
+df_axd$Arch <- "Additive by Dominant"
+df_dxd$Arch <- "Dominant by Dominant"
 
 df_combined <- bind_rows(df_axa, df_axd, df_dxd)
 
@@ -362,20 +362,21 @@ colors <- wes_palette("FantasticFox1", 3, type = "continuous")
 names(colors) <- c("Additive by Additive", "Additive by Dominant", "Dominant by Dominant")
 
 # Plot all three interactions on the same graph
-ggplot(df_combined, aes(x = loci, y = mean_epi, color = arch, linetype = arch)) +
+ggplot(df_combined, aes(x = loci, y = mean_epi, color = Arch, linetype = Arch)) +
   geom_line(size = 1.2) +
-  geom_ribbon(aes(ymin = ymin, ymax = ymax, fill = arch), alpha = 0.2) +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax, fill = Arch), alpha = 0.2) +
   scale_color_manual(values = colors) +
   scale_fill_manual(values = colors) +
   labs(
     x = "Strength of Selection",
     y = "Epistatic Variation",
     title = "Epistatic Interactions Across Selection Strengths",
-    color = "Epistatic Interaction Type",
-    linetype = "Epistatic Interaction Type"
+    color = "Epistatic Interaction Type" # Keep only this legend
+  ) +
+  scale_x_continuous(
+    breaks = seq(min(df_combined$loci), max(df_combined$loci), by = 10) # Reduce clutter
   ) +
   scale_y_continuous(limits = c(0, 1)) +
-  scale_x_continuous(breaks = seq(1, 10, 2)) +
   theme_minimal() +
   theme(
     panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
@@ -384,11 +385,10 @@ ggplot(df_combined, aes(x = loci, y = mean_epi, color = arch, linetype = arch)) 
     legend.title = element_text(size = 12),
     legend.text = element_text(size = 10),
     axis.title = element_text(size = 16),
-    axis.text = element_text(size = 14)
-  )
-
-
-
+    axis.text = element_text(size = 14),
+    axis.text.x = element_text(hjust = 0.5, vjust = 0.5) # Keep labels straight
+  ) +
+  guides(fill = "none", linetype = "none") # Remove unwanted legends
 
 #### SINGLE SET OF PARAMETERS ####
 iter <- 20
@@ -727,7 +727,7 @@ write.csv(df_axd, "df_axd.csv", row.names=T)
 library(ggplot2)
 
 # Read data
-axa <- read.csv("df_axa.csv")
+axa <- read.csv("df_axa (1).csv")
 axd <- read.csv("df_axd (1).csv")
 dxd <- read.csv("df_dxd (1).csv")
 
