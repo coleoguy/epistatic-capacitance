@@ -326,7 +326,7 @@ dxd <- read.csv("results/df_dxd.csv")
 axa$group <- "axa"
 axd$group <- "axd"
 dxd$group <- "dxd"
-data <- rbind(
+data_l <- rbind(
   axa[, c("loci", "mean_epi", "ymin", "ymax", "group")], 
   axd[, c("loci", "mean_epi", "ymin", "ymax", "group")], 
   dxd[, c("loci", "mean_epi", "ymin", "ymax", "group")]
@@ -336,29 +336,40 @@ data <- rbind(
 colors <- wes_palette("FantasticFox1", 3, type = "continuous")
 names(colors) <- c("axa", "axd", "dxd")
 
-ggplot(data, aes(x = loci, y = mean_epi, color = group, fill = group)) +
-  geom_ribbon(aes(ymin = ymin, ymax = ymax), alpha = 0.2) +  # Shaded area
-  geom_line(size = 1.2) +  # Adjusted line thickness
-  geom_point(size = 2) +
+ggplot(data_l, aes(x = loci, y = mean_epi, color = group, fill = group)) +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax), alpha = 0.2, color = NA) + 
+  geom_line(size = 1.2) +
   labs(
-    x = "Strength of Selection",
+    x = "Number of Loci",
     y = "Epistatic Variation",
-    title = "Additive by Additive"
+    title = "Effect of Number of Loci on Epistatic Variation"
   ) +
-  scale_color_manual(values = colors) +  # Apply custom colors to lines
-  scale_fill_manual(values = colors) +   # Apply custom colors to ribbons
+  scale_color_manual(
+    values = colors,
+    name = "Epistasis Type",
+    labels = c("Additive by Additive", "Additive by Dominance", "Dominance by Dominance")
+  ) +
+  scale_fill_manual(
+    values = colors,
+    name = "Epistasis Type",
+    labels = c("Additive by Additive", "Additive by Dominance", "Dominance by Dominance")
+  ) +
   scale_y_continuous(limits = c(0, 1)) +
   scale_x_continuous(breaks = seq(min(data$loci), max(data$loci), length.out = 5)) +
   theme_minimal() +
   theme(
     panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
-    legend.position = "right",
+    legend.position = c(0.95, 0.05),
+    legend.justification = c("right", "bottom"),
+    legend.title = element_text(size = 16),
+    legend.text = element_text(size = 14),
     plot.title = element_text(size = 20),
-    legend.title = element_text(size = 12),
-    legend.text = element_text(size = 10),
     axis.title = element_text(size = 16),
     axis.text = element_text(size = 14)
   )
+
+
+
 
 
 
@@ -472,6 +483,84 @@ ggplot(df_summary, aes(x = sigma, y = mean_epi)) +
     axis.title = element_text(size = 16),
     axis.text = element_text(size = 14)
   )
+# Read and process each RDS file --------------------------------------------
+
+# For "Additive by Additive" (axa)
+results_axa <- readRDS("results/axa.rds")
+df_axa <- do.call(rbind, results_axa) %>%
+  mutate(
+    ymin = pmax(mean_epi - sd_epi, 0),
+    ymax = pmin(mean_epi + sd_epi, 1),
+    group = "axa"
+  )
+
+# For "Additive by Dominance" (axd)
+results_axd <- readRDS("results/axd.rds")
+df_axd <- do.call(rbind, results_axd) %>%
+  mutate(
+    ymin = pmax(mean_epi - sd_epi, 0),
+    ymax = pmin(mean_epi + sd_epi, 1),
+    group = "axd"
+  )
+
+# For "Dominance by Dominance" (dxd)
+results_dxd <- readRDS("results/dxd.rds")
+df_dxd <- do.call(rbind, results_dxd) %>%
+  mutate(
+    ymin = pmax(mean_epi - sd_epi, 0),
+    ymax = pmin(mean_epi + sd_epi, 1),
+    group = "dxd"
+  )
+
+# Combine the datasets -------------------------------------------------------
+
+# Here we assume all data frames have the same x-variable name (here "sigma").
+# If your data use "loci" instead, update the column name accordingly.
+data_s <- bind_rows(
+  df_axa[, c("sigma", "mean_epi", "ymin", "ymax", "group")],
+  df_axd[, c("sigma", "mean_epi", "ymin", "ymax", "group")],
+  df_dxd[, c("sigma", "mean_epi", "ymin", "ymax", "group")]
+)
+
+# Define the colors using a continuous palette from wesanderson.
+# Note that the names here should match the group labels.
+colors <- wes_palette("FantasticFox1", 3, type = "continuous")
+names(colors) <- c("axa", "axd", "dxd")
+
+# Plot the combined data ------------------------------------------------------
+
+ggplot(data_s, aes(x = sigma, y = mean_epi, color = group, fill = group)) +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax), alpha = 0.2, color = NA) +
+  geom_line(size = 1.2) +
+  labs(
+    x = "Strength of Selection",
+    y = "Epistatic Variation",
+    title = "Epistatic Variation by Strength of Selection"
+  ) +
+  scale_color_manual(
+    values = colors,
+    name = "Epistasis Type",
+    labels = c("Additive by Additive", "Additive by Dominance", "Dominance by Dominance")
+  ) +
+  scale_fill_manual(
+    values = colors,
+    name = "Epistasis Type",
+    labels = c("Additive by Additive", "Additive by Dominance", "Dominance by Dominance")
+  ) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_x_continuous(breaks = seq(min(data_combined$sigma), max(data_combined$sigma), length.out = 5)) +
+  theme_minimal() +
+  theme(
+    panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
+    legend.position = c(0.95, 0.05),
+    legend.justification = c("right", "bottom"),
+    legend.title = element_text(size = 16),
+    legend.text = element_text(size = 14),
+    plot.title = element_text(size = 20),
+    axis.title = element_text(size = 16),
+    axis.text = element_text(size = 14)
+  )
+
 
 #### SELECTION AND Ve (3 types) ####
 # Parameters
