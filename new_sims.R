@@ -1,405 +1,397 @@
-## Andres Barboza - andresdbp@tamu.edu
-## Zoya Wani - zoyawani1@tamu.edu
-## April 16, 2024
+### simulation_variance_analysis.R
 
+# Load libraries
 library(parallel)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
 library(wesanderson)
+library(purrr)
 
+# Number of cores for parallel loops
 ncores <- 4
 
 ###### Starting Conditions #########
-N            <- 500
-loci         <- 100
-mu           <- 1e-5
-baseval      <- 0
-num.imp.loci <- 10
-opt          <- num.imp.loci
-sigma        <- num.imp.loci/2
-gen          <- 500
-arch         <- "axd"
-epi_flag     <- "alter"
-sag          <- 1.1
+# Fixed parameters
+N             <- 1000       # initial pop size placeholder
+loci          <- 100        # total loci
+mu            <- 1e-5       # mutation rate per gene
+baseval       <- 0          # base phenotype value
+num.imp.loci  <- 10         # # causal loci for sweeps 1 & 2
+opt           <- num.imp.loci
+sigma         <- num.imp.loci / 2
+gen           <- 2000       # generations
+epi_flag      <- "alter"  # "half" or "alter"
+sag           <- 1.1        # exponent for inc/dec
+arches        <- c("axa", "axd", "dxd")
 ###### End Starting Conditions #########
 
-###### FUNCTIONS #########
-
-GetPopulation <- function(N,loci){
-  
-  pop <- matrix(rep(4, N*loci), N, loci)
-  
-  # 0,0 = 1
-  # 0,1 = 2
-  # 1,0 = 3
-  # 1,1 = 4
-  
-  return(pop)
-  
+###### FUNCTION DEFINITIONS #########
+GetPopulation <- function(N, loci) {
+  matrix(rep(4, N * loci), nrow = N, ncol = loci)
 }
 
 MutatePop <- function(pop, mu) {
-  # Probability of an individual having at least one mutation
-  mut.prob <- 1 - (1 - mu)^1547  # 1547 is the number of base pairs in the coding region
-  
-  # Determine mutation coordinates where random values are less than mut.prob
-  mut.coord <- which(matrix(runif(nrow(pop) * ncol(pop)), 
-                            nrow = nrow(pop), ncol = ncol(pop)) < mut.prob, 
-                     arr.ind = TRUE)
-  
-  apply_mutations <- function(pop, coordinates) {
-    for (i in seq_len(nrow(coordinates))) {
-      row_index <- coordinates[i, 1]
-      col_index <- coordinates[i, 2]
-      value <- pop[row_index, col_index]
-      
-      # switches values 
-      pop[row_index, col_index] <- switch(value,
-                                          sample(c(2, 3), 1),  # for 1
-                                          sample(c(1, 4), 1),  # for 2
-                                          sample(c(1, 4), 1),  # for 3
-                                          sample(c(2, 3), 1))  # for 4
-    }
-    return(pop)
+  mut.prob <- 1 - (1 - mu)^1547
+  coords   <- which(matrix(runif(nrow(pop) * ncol(pop)), nrow = nrow(pop)) < mut.prob, arr.ind = TRUE)
+  for(i in seq_len(nrow(coords))) {
+    r <- coords[i,1]; c <- coords[i,2]
+    pop[r,c] <- switch(pop[r,c], sample(c(2,3),1), sample(c(1,4),1), sample(c(1,4),1), sample(c(2,3),1))
   }
-  
-  # Apply mutations to the population matrix
-  mutants <- apply_mutations(pop, mut.coord)
-  return(mutants)
+  pop
 }
 
-GetPheno <- function(pop, loci.imp, baseval, arch, epi_flag){
-  temppop <- pop[,loci.imp]
-  temppop[temppop==1] <- 0
-  temppop[temppop %in% c(2, 3)] <- 1
-  temppop[temppop == 4] <- 2
-  
-  if(arch == "add") {
-    phenos <- rowSums(temppop) + baseval
+GetPheno <- function(pop, loci.imp, baseval, arch, epi_flag) {
+  mat <- pop[, loci.imp]
+  mat[mat==1]         <- 0
+  mat[mat %in% c(2,3)] <- 1
+  mat[mat==4]         <- 2
+  if(arch == "add") return(rowSums(mat) + baseval)
+  get_two_locus <- function(mat) {
+    if(epi_flag == "half") {
+      half <- ncol(mat)/2
+      dir  <- mat[,1:half]; inv <- mat[,(half+1):(2*half)]
+    } else {
+      dir <- mat[,seq(1,ncol(mat),2)]
+      inv <- mat[,seq(2,ncol(mat),2)]
+    }
+    list(dir=dir, inv=inv)
   }
-  
+  if(arch %in% c("axa","dxd","axd")) {
+    tl  <- get_two_locus(mat)
+    dir <- tl$dir; inv <- tl$inv
+  }
   if(arch == "axa") {
-    if (epi_flag == "half") {
-      dir_loci <- temppop[, 1:(length(loci.imp)/2)]
-      inv_loci <- temppop[, (length(loci.imp)/2)+1:(length(loci.imp)/2)]
-    } else if (epi_flag == "alter") {
-      dir_loci <- temppop[, seq(1, length(loci.imp), by = 2)]
-      inv_loci <- temppop[, seq(2, length(loci.imp), by = 2)]
-    }
-    
-    cond1 <- (dir_loci == 2 & inv_loci == 2) | (dir_loci == 0 & inv_loci == 0)
-    cond2 <- (dir_loci == 2 & inv_loci == 0) | (dir_loci == 0 & inv_loci == 2)
-    cond3 <- (dir_loci == 1 | inv_loci == 1)
-    
-    phenos <- baseval + rowSums(4 * cond1 + 0 * cond2 + 2 * cond3)
+    c1 <- (dir==2 & inv==2)|(dir==0 & inv==0)
+    c2 <- (dir==2 & inv==0)|(dir==0 & inv==2)
+    c3 <- (dir==1|inv==1)
+    return(baseval + rowSums(4*c1 + 0*c2 + 2*c3))
   }
-  
   if(arch == "dxd") {
-    if (epi_flag == "half") {
-      dir_loci <- temppop[, 1:(length(loci.imp)/2)]
-      inv_loci <- temppop[, (length(loci.imp)/2)+1:(length(loci.imp)/2)]
-    } else if (epi_flag == "alter") {
-      dir_loci <- temppop[, seq(1, length(loci.imp), by = 2)]
-      inv_loci <- temppop[, seq(2, length(loci.imp), by = 2)]
-    }
-    
-    cond1 <- (dir_loci == 2 & inv_loci != 1) | (dir_loci == 0 & inv_loci != 1) | (dir_loci != 1 & inv_loci == 2) | (dir_loci != 1 & inv_loci == 0)
-    cond2 <- (dir_loci == 1 & inv_loci != 1) | (dir_loci != 1 & inv_loci == 1)
-    cond3 <- (dir_loci == 1 & inv_loci == 1)
-    
-    phenos <- baseval + rowSums(2 * cond1 + 0 * cond2 + 4 * cond3)
+    c1 <- (dir %in% c(2,0) & inv!=1)|(dir!=1 & inv %in% c(2,0))
+    c2 <- ( (dir==1 & inv!=1)|(dir!=1 & inv==1) )
+    c3 <- (dir==1 & inv==1)
+    return(baseval + rowSums(2*c1 + 0*c2 + 4*c3))
   }
-  
   if(arch == "axd") {
-    if (epi_flag == "half") {
-      dir_loci <- temppop[, 1:(length(loci.imp)/2)]
-      inv_loci <- temppop[, (length(loci.imp)/2)+1:(length(loci.imp)/2)]
-    } else if (epi_flag == "alter") {
-      dir_loci <- temppop[, seq(1, length(loci.imp), by = 2)]
-      inv_loci <- temppop[, seq(2, length(loci.imp), by = 2)]
-    }
-    
-    cond1 <- (dir_loci == 2 & inv_loci != 1)
-    cond2 <- (dir_loci == 1)
-    cond3 <- (dir_loci == 0 & inv_loci != 1)
-    cond4 <- (dir_loci == 2 & inv_loci == 1)
-    cond5 <- (dir_loci == 0 & inv_loci != 1)
-    
-    phenos <- baseval + rowSums(1 * cond1 + 2 * cond2 + 3 * cond3 + 4 * cond4 + 0 * cond5)
+    c1 <- (dir==2 & inv!=1)
+    c2 <- (dir==1)
+    c3 <- (dir==0 & inv!=1)
+    c4 <- (dir==2 & inv==1)
+    c5 <- (dir==0 & inv!=1)
+    return(baseval + rowSums(1*c1 + 2*c2 + 3*c3 + 4*c4 + 0*c5))
   }
-  
   if(arch == "inc") {
-    phenos <- (length(loci.imp)*2)*((rowSums(temppop) + baseval)/(length(loci.imp)*2))^sag
+    return((ncol(mat)*2)*((rowSums(mat)+baseval)/(ncol(mat)*2))^sag)
   }
-  
   if(arch == "dec") {
-    phenos <- baseval + (length(loci.imp) * 2 - baseval) * ((rowSums(temppop) + baseval - baseval) / (length(loci.imp) * 2 - baseval))^(1/sag)
+    return(baseval + (ncol(mat)*2-baseval)*((rowSums(mat))/(ncol(mat)*2-baseval))^(1/sag))
   }
-  
-  return(phenos)
 }
 
-GetFit <- function(obs, opt, sigma){
-  numer <- (obs - opt)^2
-  denom <- (2 * sigma)^2
-  w <- exp(-(numer / denom))
-  return(w)
+GetFit <- function(obs, opt, sigma) {
+  exp(-((obs-opt)^2)/(2*sigma)^2)
 }
 
 Reproduction <- function(pop, N, w, loci) {
-  # Sample parents based on fitness probabilities
-  parents <- sample(N, size = 2 * N, replace = TRUE, prob = w)
-  
-  # Generate haplotype selection matrix
-  recomb <- pmax(pmin(rpois(n = 2 * N, lambda = 10), loci), 1)
-  haplotypes <- matrix(unlist(lapply(recomb, function(r) rep(sample(1:2, r, replace = TRUE), each = ceiling(loci / r), length.out = loci))),
-                       nrow = 2 * N, ncol = loci, byrow = TRUE)
-  
-  # Gamete formation
-  gametes <- ifelse(
-    pop[parents, ] == 1,  # Genotype 1 -> Both alleles are 0
-    0,
-    ifelse(
-      pop[parents, ] == 4,  # Genotype 4 -> Both alleles are 1
-      1,
-      ifelse(
-        pop[parents, ] == 2,  # Genotype 2 -> Depends on haplotype
-        ifelse(haplotypes == 1, 0, 1),
-        ifelse(haplotypes == 1, 1, 0)  # Genotype 3 -> Depends on haplotype
-      )
-    )
-  )
-  # Fertilization: Pair gametes to form diploid genotypes
-  maternal_gametes <- gametes[seq(1, 2 * N, by = 2), ]
-  paternal_gametes <- gametes[seq(2, 2 * N, by = 2), ]
-  new_population <- 1 + maternal_gametes + paternal_gametes * 2
-  
-  return(new_population)
+  parents <- sample(N, 2*N, TRUE, prob = w)
+  reco    <- pmax(pmin(rpois(2*N,10), loci),1)
+  haps    <- t(sapply(reco, function(r) rep(sample(1:2,r,TRUE), each=ceiling(loci/r), length.out=loci)))
+  mat     <- pop[parents,]
+  gametes <- ifelse(mat==1, 0,
+                    ifelse(mat==4, 1,
+                           ifelse(haps==1, 0, 1)))
+  m_gametes <- gametes[seq(1,2*N,2),]
+  p_gametes <- gametes[seq(2,2*N,2),]
+  1 + m_gametes + 2*p_gametes
 }
 
 GetArch <- function(pop, loci.imp, phenos) {
-  
-  pop <- pop[, loci.imp]
-  
-  # Additive
-  a_mat <- matrix(0, nrow = N, ncol = length(loci.imp))
-  a_mat[pop == 1] <- 1
-  a_mat[pop == 4] <- -1
-  
-  fit <- lm(phenos ~ a_mat)
-  R2a <- summary(fit)$adj.r.squared
-  
-  # Dominance
-  d_mat <- matrix(1, nrow = N, ncol = length(loci.imp))
-  d_mat[pop == 1 | pop == 4] <- 0
-  
-  fit <- lm(phenos ~ a_mat + d_mat)
-  R2ad <- summary(fit)$adj.r.squared
-  
-  # Epistasis
-  # Precompute pairs of indices for interaction terms
-  if (epi_flag == "alter") {
-    indices <- seq(1, ncol(pop), by = 2)
-  } else {
-    half_cols <- ncol(pop) / 2
-    indices <- 1:half_cols
-  }
-  
-  # Compute epistatic interaction matrices
-  e_mat_aa <- a_mat[, indices] * a_mat[, indices + ifelse(epi_flag == "alter", 1, half_cols)]
-  e_mat_ad <- a_mat[, indices] * d_mat[, indices + ifelse(epi_flag == "alter", 1, half_cols)]
-  e_mat_dd <- d_mat[, indices] * d_mat[, indices + ifelse(epi_flag == "alter", 1, half_cols)]
-  
-  fit <- lm(phenos ~ a_mat + d_mat + e_mat_aa + e_mat_ad + e_mat_dd)
-  R2ade <- summary(fit)$adj.r.squared
-  
-  return(c(R2a, R2ad, R2ade))
+  pop2   <- pop[, loci.imp]
+  a_mat  <- matrix(0, nrow=nrow(pop2), ncol=ncol(pop2))
+  d_mat  <- matrix(1, nrow=nrow(pop2), ncol=ncol(pop2))
+  a_mat[pop2==1] <- 1; a_mat[pop2==4] <- -1
+  d_mat[pop2 %in% c(1,4)] <- 0
+  R2a  <- summary(lm(phenos~a_mat))$adj.r.squared
+  R2ad <- summary(lm(phenos~a_mat+d_mat))$adj.r.squared
+  half <- if(epi_flag=="alter") ncol(pop2)/2 else NULL
+  idx  <- if(epi_flag=="alter") seq(1,ncol(pop2),2) else 1:half
+  e_aa <- a_mat[,idx]*a_mat[,idx+ifelse(epi_flag=="alter",1,half)]
+  e_ad <- a_mat[,idx]*d_mat[,idx+ifelse(epi_flag=="alter",1,half)]
+  e_dd <- d_mat[,idx]*d_mat[,idx+ifelse(epi_flag=="alter",1,half)]
+  R2ade <- summary(lm(phenos~a_mat+d_mat+e_aa+e_ad+e_dd))$adj.r.squared
+  c(R2a, R2ad, R2ade)
 }
 
-SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose) {
-  pop <- GetPopulation(N, loci)
-  avg_phenos <- numeric(gen)
-  lm_arch <- matrix(NA, nrow = gen, ncol = 3)
-  for (generation in 1:gen) {
+ApplyBottleneck <- function(pop, prop) {
+  survivors <- pop[
+    sample(nrow(pop), size = ceiling(nrow(pop) * prop), replace = FALSE),
+    , drop = FALSE
+  ]
+  return(survivors)
+}
+
+# SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma, arch, epi_flag, verbose=FALSE) {
+#   pop       <- GetPopulation(N, loci)
+#   avg_pheno <- numeric(gen)
+#   lm_arch   <- matrix(NA, gen, 3)
+#   for(g in seq_len(gen)) {
+#     pop          <- MutatePop(pop, mu)
+#     phenos       <- GetPheno(pop, loci.imp, baseval, arch, epi_flag)
+#     avg_pheno[g] <- mean(phenos)
+#     lm_arch[g, ] <- GetArch(pop, loci.imp, phenos)
+#     w            <- GetFit(phenos, opt, sigma)
+#     pop          <- Reproduction(pop, N, w, loci)
+#     if(verbose) message("Gen ", g)
+#   }
+#   list(final_population=pop, avg_phenos=avg_pheno, lm_arch=lm_arch)
+# }
+
+SimulateGenerations <- function(N, loci, mu, baseval, loci.imp,
+                                opt, gen, sigma, arch, epi_flag,
+                                do_bottleneck   = FALSE,
+                                bottleneck_prop = 0.1,
+                                do_opt_change   = FALSE,
+                                verbose         = FALSE) {
+  # initialize
+  N_current   <- N
+  pop         <- GetPopulation(N_current, loci)
+  mid         <- floor(gen / 2)
+  opt_current <- opt
+  
+  mean_pheno  <- numeric(gen)
+  opt_history <- numeric(gen)
+  lm_arch     <- matrix(NA, nrow = gen, ncol = 3)
+  
+  for (g in 1:gen) {
+    # mutation
     pop <- MutatePop(pop, mu)
-    phenos <- GetPheno(pop, loci.imp, baseval, arch, epi_flag)
-    avg_phenos[generation] <- mean(phenos)
-    lm_arch[generation, ] <- GetArch(pop, loci.imp, phenos)
-    w <- GetFit(phenos, opt, sigma)
-    pop <- Reproduction(pop, N, w, loci)
-    if(verbose) print(generation)
+    
+    # at midpoint: apply bottleneck (truly shrink) and/or shift optimum
+    if (do_bottleneck && g == mid) {
+      pop       <- ApplyBottleneck(pop, bottleneck_prop)
+      N_current <- nrow(pop)
+    }
+    if (do_opt_change && g == mid) {
+      opt_current <- sample(c(baseval, length(loci.imp) * 2), 1)
+    }
+    
+    # phenotype & record
+    phenos         <- GetPheno(pop, loci.imp, baseval, arch, epi_flag)
+    mean_pheno[g]  <- mean(phenos)
+    opt_history[g] <- opt_current
+    
+    # architecture R2s
+    lm_arch[g, ] <- GetArch(pop, loci.imp, phenos)
+    
+    # fitness‐weighted reproduction at the *current* population size
+    w   <- GetFit(phenos, opt_current, sigma)
+    pop <- Reproduction(pop, N_current, w, loci)
+    
+    if (verbose) message("Gen ", g, " (N=", N_current, ")")
   }
-  return(list(final_population = pop, avg_phenos = avg_phenos, lm_arch = lm_arch))
+  
+  # compute deviation from optimum in second half
+  diff_vec     <- abs(mean_pheno - opt_history)
+  mean_response <- mean(diff_vec[(mid + 1):gen])
+  
+  list(
+    final_population = pop,
+    avg_phenos       = mean_pheno,
+    lm_arch          = lm_arch,
+    diff_vec         = diff_vec,
+    mean_response    = mean_response
+  )
 }
 
-###### ANALYSIS #########
-
-#### 1) NUMBER OF LOCI AND Ve ####
-
-iter       <- 4
-loci_range <- seq(4, 100, by = 2)
-arches     <- c("axa", "axd", "dxd")
-
-compute_loci_variance <- function(arch) {
-  df_list <- mclapply(loci_range, function(l) {
-    add_reps <- numeric(iter)
-    dom_reps <- numeric(iter)
-    epi_reps <- numeric(iter)
-    for (i in seq_len(iter)) {
-      loci.imp <- sort(sample(1:loci, l))
-      sim     <- SimulateGenerations(N, loci, mu, baseval, loci.imp, opt = l,
-                                     gen, sigma = l/2, arch, epi_flag, FALSE)
-      vals    <- sim$lm_arch[gen, ]
-      add_reps[i] <- vals[1]
-      dom_reps[i] <- vals[2] - vals[1]
-      epi_reps[i] <- vals[3] - vals[2]
-    }
-    data.frame(
-      loci     = l,
-      mean_add = mean(add_reps), sd_add = sd(add_reps),
-      mean_dom = mean(dom_reps), sd_dom = sd(dom_reps),
-      mean_epi = mean(epi_reps), sd_epi = sd(epi_reps)
-    )
-  }, mc.cores = ncores)
-  df <- bind_rows(df_list)
-  df$architecture <- arch
-  return(df)
-}
-
-df_loci <- bind_rows(lapply(arches, compute_loci_variance))
-write.csv(df_loci,  "df_loci.csv",  row.names = FALSE)
-
-#### 2) SELECTION STRENGTH AND Ve ####
-
-sigma_values <- seq(1, 10, length.out = 100)
-
-compute_sigma_variance <- function(arch) {
-  df_list <- mclapply(sigma_values, function(s) {
-    add_reps <- numeric(iter)
-    dom_reps <- numeric(iter)
-    epi_reps <- numeric(iter)
-    for (i in seq_len(iter)) {
-      sim   <- SimulateGenerations(N, loci, mu, baseval, 
-                                   loci.imp = sort(sample(1:loci, num.imp.loci)),
-                                   opt, gen, sigma = s, arch, epi_flag, FALSE)
-      vals  <- sim$lm_arch[gen, ]
-      add_reps[i] <- vals[1]
-      dom_reps[i] <- vals[2] - vals[1]
-      epi_reps[i] <- vals[3] - vals[2]
-    }
-    data.frame(
-      sigma    = s,
-      mean_add = mean(add_reps), sd_add = sd(add_reps),
-      mean_dom = mean(dom_reps), sd_dom = sd(dom_reps),
-      mean_epi = mean(epi_reps), sd_epi = sd(epi_reps)
-    )
-  }, mc.cores = ncores)
-  df <- bind_rows(df_list)
-  df$architecture <- arch
-  return(df)
-}
-
-df_sigma <- bind_rows(lapply(arches, compute_sigma_variance))
-write.csv(df_sigma, "df_sigma.csv", row.names = FALSE)
-
-#### 3) TIDY & PLOT ####
-
-# helper to go long
+###### Helper: tidy long #########
 tidy_variance <- function(df, xvar) {
   df %>%
     pivot_longer(
       cols = matches("^(mean|sd)_"),
-      names_to = c(".value", "component"),
+      names_to = c(".value","component"),
       names_pattern = "(mean|sd)_(.*)"
     ) %>%
-    # clamp any negative means up to 0
     mutate(
-      mean      = pmax(mean, 0.0000000001),
+      mean      = pmax(mean, 0),              # clamp negatives
       ymin      = pmax(mean - sd, 0),
       ymax      = pmin(mean + sd, 1),
-      component = factor(
-        component,
-        levels = c("add", "dom", "epi"),
-        labels = c("Additive", "Dominance", "Epistasis")
-      )
+      component = factor(component,
+                         levels=c("add","dom","epi"),
+                         labels=c("Additive","Dominance","Epistasis"))
     ) %>%
     rename(!!xvar := all_of(xvar))
 }
 
+# Palettes
+pal_arch <- wes_palette("FantasticFox1", length(arches), type="continuous")
+names(pal_arch) <- arches
+# define color palette for the three components
+pal_comp <- wes_palette("FantasticFox1", 3, type = "continuous")
+names(pal_comp) <- c("Additive", "Dominance", "Epistasis")
 
-# tidy both datasets
-loci_long  <- tidy_variance(df_loci,  "loci")
-sigma_long <- tidy_variance(df_sigma, "sigma")
 
-# shared colors by architecture
-pal <- wes_palette("FantasticFox1", 3, type = "continuous")
-names(pal) <- arches
+######## STEP 1: Loci sweep #########
+iter       <- 200
+loci_range <- seq(4, 100, by=2)
+compute_loci_variance <- function(arch) {
+  res <- mclapply(loci_range, function(l) {
+    add_v <- dom_v <- epi_v <- numeric(iter)
+    for(i in seq_len(iter)){
+      loci.imp <- sort(sample(1:loci, l))
+      sim      <- SimulateGenerations(N, loci, mu, baseval, loci.imp,
+                                      opt=l, gen, sigma=l/2,
+                                      arch, epi_flag)
+      vals     <- sim$lm_arch[gen,]
+      add_v[i] <- vals[1]
+      dom_v[i] <- vals[2] - vals[1]
+      epi_v[i] <- vals[3] - vals[2]
+    }
+    data.frame(
+      loci     = l,
+      mean_add = mean(add_v), sd_add = sd(add_v),
+      mean_dom = mean(dom_v), sd_dom = sd(dom_v),
+      mean_epi = mean(epi_v), sd_epi = sd(epi_v)
+    )
+  }, mc.cores = ncores)
+  df <- bind_rows(res)
+  df$architecture <- arch
+  df
+}
+df_loci <- bind_rows(lapply(arches, compute_loci_variance))
+write.csv(df_loci, "df_loci.csv", row.names=FALSE)
 
-# A) Number of loci plot
+loci_long <- tidy_variance(df_loci, "loci")
+
 p1 <- ggplot(loci_long, aes(x = loci, y = mean,
-                            color = architecture,
-                            fill  = architecture)) +
-  geom_ribbon(aes(ymin = ymin, ymax = ymax),
-              color = NA, alpha = 0.2) +
+                            color = component, fill = component)) +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax), alpha = 0.2, color = NA) +
   geom_line(size = 1.2) +
-  facet_wrap(~component, nrow = 1) +
+  facet_wrap(~architecture, nrow = 1) +
   labs(
     x     = "Number of Loci",
     y     = "Genetic Variance",
     title = "Effect of Number of Loci on Genetic Variance",
-    color = "Genetic Architecture",
-    fill  = "Genetic Architecture"
+    color = "Variance\nComponent",
+    fill  = "Variance\nComponent"
   ) +
-  scale_color_manual(values = pal,
-                     labels = c("Additive by Additive",
-                                "Additive by Dominance",
-                                "Dominance by Dominance")) +
-  scale_fill_manual(values = pal,
-                    labels = c("Additive by Additive",
-                               "Additive by Dominance",
-                               "Dominance by Dominance")) +
-  scale_y_continuous(limits = c(0,1)) +
-  scale_x_continuous(breaks = seq(min(loci_range),
-                                  max(loci_range),
-                                  length.out = 5)) +
+  scale_color_manual(values = pal_comp) +
+  scale_fill_manual(values = pal_comp) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_x_continuous(breaks = seq(min(loci_range), max(loci_range), length.out = 5)) +
   theme_minimal() +
   theme(
-    panel.border   = element_rect(color = "darkgray", fill = NA, size = 1),
-    legend.position = c(0.95, 0.05),
-    legend.justification = c("right","bottom"),
-    legend.title   = element_text(size = 16),
-    legend.text    = element_text(size = 14),
-    plot.title     = element_text(size = 20),
-    axis.title     = element_text(size = 16),
-    axis.text      = element_text(size = 14)
+    panel.border    = element_rect(color = "darkgray", fill = NA, size = 1),
+    legend.position = "bottom",
+    legend.title    = element_text(size = 14),
+    legend.text     = element_text(size = 12),
+    plot.title      = element_text(size = 20),
+    axis.title      = element_text(size = 16),
+    axis.text       = element_text(size = 14)
   )
 
-# B) Selection strength plot
+######## STEP 2: Selection strength sweep #########
+sigma_values <- seq(1, 10, length.out=100)
+compute_sigma_variance <- function(arch) {
+  res <- mclapply(sigma_values, function(s) {
+    add_v <- dom_v <- epi_v <- numeric(iter)
+    for(i in seq_len(iter)){
+      sim  <- SimulateGenerations(N, loci, mu, baseval,
+                                  sort(sample(1:loci, num.imp.loci)), opt,
+                                  gen, sigma=s, arch, epi_flag)
+      vals <- sim$lm_arch[gen,]
+      add_v[i] <- vals[1]
+      dom_v[i] <- vals[2] - vals[1]
+      epi_v[i] <- vals[3] - vals[2]
+    }
+    data.frame(
+      sigma    = s,
+      mean_add = mean(add_v), sd_add = sd(add_v),
+      mean_dom = mean(dom_v), sd_dom = sd(dom_v),
+      mean_epi = mean(epi_v), sd_epi = sd(epi_v)
+    )
+  }, mc.cores = ncores)
+  df <- bind_rows(res)
+  df$architecture <- arch
+  df
+}
+df_sigma <- bind_rows(lapply(arches, compute_sigma_variance))
+write.csv(df_sigma, "df_sigma.csv", row.names=FALSE)
+
+sigma_long <- tidy_variance(df_sigma, "sigma")
+
 p2 <- ggplot(sigma_long, aes(x = sigma, y = mean,
-                             color = architecture,
-                             fill  = architecture)) +
-  geom_ribbon(aes(ymin = ymin, ymax = ymax),
-              color = NA, alpha = 0.2) +
+                             color = component, fill = component)) +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax), alpha = 0.2, color = NA) +
   geom_line(size = 1.2) +
-  facet_wrap(~component, nrow = 1) +
+  facet_wrap(~architecture, nrow = 1) +
   labs(
-    x     = "Strength of Selection (σ)",
+    x     = "Selection Strength (σ)",
     y     = "Genetic Variance",
     title = "Effect of Selection Strength on Genetic Variance",
-    color = "Genetic Architecture",
-    fill  = "Genetic Architecture"
+    color = "Variance\nComponent",
+    fill  = "Variance\nComponent"
   ) +
-  scale_color_manual(values = pal,
-                     labels = c("Additive by Additive",
-                                "Additive by Dominance",
-                                "Dominance by Dominance")) +
-  scale_fill_manual(values = pal,
-                    labels = c("Additive by Additive",
-                               "Additive by Dominance",
-                               "Dominance by Dominance")) +
-  scale_y_continuous(limits = c(0,1)) +
-  scale_x_continuous(breaks = seq(1,10, by = 2)) +
+  scale_color_manual(values = pal_comp) +
+  scale_fill_manual(values = pal_comp) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_x_continuous(breaks = seq(1, 10, by = 2)) +
+  theme_minimal() +
+  theme(
+    panel.border    = element_rect(color = "darkgray", fill = NA, size = 1),
+    legend.position = "bottom",
+    legend.title    = element_text(size = 14),
+    legend.text     = element_text(size = 12),
+    plot.title      = element_text(size = 20),
+    axis.title      = element_text(size = 16),
+    axis.text       = element_text(size = 14)
+  )
+######## STEP 3: Population size sweep #########
+N_values <- c(50, 100, 200, 500, 1000, 2000)
+compute_N_variance <- function(arch) {
+  res <- mclapply(N_values, function(N_now) {
+    add_v <- dom_v <- epi_v <- numeric(iter)
+    for(i in seq_len(iter)){
+      sim  <- SimulateGenerations(N_now, loci, mu, baseval,
+                                  sort(sample(1:loci, 20)), opt=20,
+                                  gen, sigma=5, arch, epi_flag)
+      vals <- sim$lm_arch[gen,]
+      add_v[i] <- vals[1]
+      dom_v[i] <- vals[2] - vals[1]
+      epi_v[i] <- vals[3] - vals[2]
+    }
+    data.frame(
+      N         = N_now,
+      mean_add  = mean(add_v), sd_add  = sd(add_v),
+      mean_dom  = mean(dom_v), sd_dom  = sd(dom_v),
+      mean_epi  = mean(epi_v), sd_epi  = sd(epi_v)
+    )
+  }, mc.cores = ncores)
+  df <- bind_rows(res)
+  df$architecture <- arch
+  df
+}
+df_N <- bind_rows(lapply(arches, compute_N_variance))
+write.csv(df_N, "df_N.csv", row.names=FALSE)
+
+N_long <- tidy_variance(df_N, "N")
+
+p3 <- ggplot(N_long, aes(x = N, y = mean,
+                         color = component, fill = component)) +
+  geom_ribbon(aes(ymin = ymin, ymax = ymax), alpha = 0.2, color = NA) +
+  geom_line(size = 1.2) +
+  facet_wrap(~architecture, nrow = 1) +
+  labs(
+    x     = "Population Size (N)",
+    y     = "Genetic Variance",
+    title = "Effect of Population Size on Genetic Variance",
+    color = "Variance\nComponent",
+    fill  = "Variance\nComponent"
+  ) +
+  scale_color_manual(values = pal_comp) +
+  scale_fill_manual(values = pal_comp) +
+  scale_y_continuous(limits = c(0, 1)) +
+  scale_x_continuous(breaks = N_values) +
   theme_minimal() +
   theme(
     panel.border   = element_rect(color = "darkgray", fill = NA, size = 1),
@@ -411,8 +403,173 @@ p2 <- ggplot(sigma_long, aes(x = sigma, y = mean,
     axis.text      = element_text(size = 14)
   )
 
-# finally, print or save
+######## STEP 4: Bottleneck effect on response to selection #########
+
+iter            <- 8
+bottle_prop     <- 0.2
+arches          <- c("axa","axd","dxd")
+do_opt_change   <- TRUE
+bottleneck_flag <- c(FALSE, TRUE)
+mid <- floor(gen/2)
+post_len <- gen - mid
+
+df_time <- bind_rows(
+  lapply(arches, function(arch) {
+    lapply(bottleneck_flag, function(do_bottle) {
+      # parallel over replicates
+      res_list <- mclapply(seq_len(iter), function(i) {
+        sim <- SimulateGenerations(
+          N, loci, mu, baseval,
+          sort(sample(1:loci, num.imp.loci)),
+          opt, gen, sigma, arch, epi_flag,
+          do_bottleneck   = do_bottle,
+          bottleneck_prop = bottle_prop,
+          do_opt_change   = do_opt_change,
+          verbose         = FALSE
+        )
+        # build a data.frame of time (1..post_len) and diff
+        data.frame(
+          architecture = arch,
+          bottleneck   = do_bottle,
+          time         = seq_len(post_len),
+          diff         = sim$diff_vec[(mid + 1):gen]
+        )
+      }, mc.cores = ncores)
+      bind_rows(res_list)
+    }) %>% bind_rows()
+  }) %>% bind_rows()
+)
+
+# 2) summarize across replicates at each time-step
+df_time_sum <- df_time %>%
+  group_by(architecture, bottleneck, time) %>%
+  summarise(
+    mean_diff = mean(diff),
+    min_diff  = min(diff),
+    max_diff  = max(diff),
+    .groups   = "drop"
+  )
+
+# 3) plotting
+pal_b <- c("FALSE" = "#1b9e77", "TRUE" = "#d95f02")  # choose two distinct colors
+
+p4 <- ggplot(df_time_sum,
+       aes(x = time, y = mean_diff,
+           color = factor(bottleneck),
+           fill  = factor(bottleneck))) +
+  geom_ribbon(aes(ymin = min_diff, ymax = max_diff),
+              alpha = 0.2, color = NA) +
+  geom_line(size = 1.2) +
+  facet_wrap(~architecture, nrow = 1) +
+  scale_color_manual(
+    name   = "Bottleneck",
+    values = pal_b,
+    labels = c("No", "Yes")
+  ) +
+  scale_fill_manual(
+    name   = "Bottleneck",
+    values = pal_b,
+    labels = c("No", "Yes")
+  ) +
+  labs(
+    x     = "Generations after optimum shift",
+    y     = expression("|mean phenotype – optimum|"),
+    title = "Response to selection with vs. without bottleneck"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.border    = element_rect(color = "darkgray", fill = NA, size = 1),
+    legend.position = "bottom",
+    plot.title      = element_text(size = 18),
+    axis.title      = element_text(size = 14),
+    axis.text       = element_text(size = 12)
+  )
+
+# ## Full trajectory
+# iter            <- 8
+# bottle_prop     <- 0.1
+# arches          <- c("axa","axd","dxd")
+# do_opt_change   <- TRUE
+# bottleneck_flag <- c(FALSE, TRUE)
+# 
+# # 1) run all sims and collect per‐gen diff for 1:gen
+# df_time <- bind_rows(
+#   lapply(arches, function(arch) {
+#     lapply(bottleneck_flag, function(do_bottle) {
+#       res_list <- mclapply(seq_len(iter), function(i) {
+#         sim <- SimulateGenerations(
+#           N, loci, mu, baseval,
+#           sort(sample(1:loci, num.imp.loci)),
+#           opt, gen, sigma, arch, epi_flag,
+#           do_bottleneck   = do_bottle,
+#           bottleneck_prop = bottle_prop,
+#           do_opt_change   = do_opt_change,
+#           verbose         = FALSE
+#         )
+#         data.frame(
+#           architecture = arch,
+#           bottleneck   = do_bottle,
+#           time         = seq_len(gen),
+#           diff         = sim$diff_vec[1:gen]
+#         )
+#       }, mc.cores = ncores)
+#       bind_rows(res_list)
+#     }) %>% bind_rows()
+#   }) %>% bind_rows()
+# )
+# 
+# # 2) summarize across replicates at each generation
+# df_time_sum <- df_time %>%
+#   group_by(architecture, bottleneck, time) %>%
+#   summarise(
+#     mean_diff = mean(diff),
+#     min_diff  = min(diff),
+#     max_diff  = max(diff),
+#     .groups   = "drop"
+#   )
+# 
+# # 3) plotting full trajectory
+# pal_b <- c("FALSE" = "#1b9e77", "TRUE" = "#d95f02")
+# 
+# ggplot(df_time_sum,
+#        aes(x = time, y = mean_diff,
+#            color = factor(bottleneck),
+#            fill  = factor(bottleneck))) +
+#   geom_ribbon(aes(ymin = min_diff, ymax = max_diff),
+#               alpha = 0.2, color = NA) +
+#   geom_line(size = 1.2) +
+#   facet_wrap(~architecture, nrow = 1) +
+#   scale_color_manual(
+#     name   = "Bottleneck",
+#     values = pal_b,
+#     labels = c("No", "Yes")
+#   ) +
+#   scale_fill_manual(
+#     name   = "Bottleneck",
+#     values = pal_b,
+#     labels = c("No", "Yes")
+#   ) +
+#   labs(
+#     x     = "Generation",
+#     y     = expression("|mean phenotype – optimum|"),
+#     title = "Full‐trajectory response to selection with vs. without bottleneck"
+#   ) +
+#   theme_minimal() +
+#   theme(
+#     panel.border    = element_rect(color = "darkgray", fill = NA, size = 1),
+#     legend.position = "bottom",
+#     plot.title      = element_text(size = 18),
+#     axis.title      = element_text(size = 14),
+#     axis.text       = element_text(size = 12)
+#   )
+
+
+# Print plots
 print(p1)
 print(p2)
+print(p3)
+print(p4)
+# Optionally save plots
 # ggsave("loci_vs_variance.png", p1, width=12, height=4)
 # ggsave("sigma_vs_variance.png", p2, width=12, height=4)
+# ggsave("N_vs_variance.png", p3, width=12, height=4)';
