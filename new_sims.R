@@ -28,7 +28,8 @@ arches        <- c("axa", "axd", "dxd")
 
 ###### FUNCTION DEFINITIONS #########
 GetPopulation <- function(N, loci) {
-  matrix(rep(4, N * loci), nrow = N, ncol = loci)
+  matrix(sample(1:4, N*loci, replace=T), N, loci)
+  #matrix(rep(4, N * loci), nrow = N, ncol = loci)
 }
 
 MutatePop <- function(pop, mu) {
@@ -78,7 +79,7 @@ GetPheno <- function(pop, loci.imp, baseval, arch, epi_flag) {
     c2 <- (dir==1)
     c3 <- (dir==0 & inv!=1)
     c4 <- (dir==2 & inv==1)
-    c5 <- (dir==0 & inv!=1)
+    c5 <- (dir==0 & inv==1)
     return(baseval + rowSums(1*c1 + 2*c2 + 3*c3 + 4*c4 + 0*c5))
   }
   if(arch == "inc") {
@@ -282,7 +283,7 @@ p1 <- ggplot(loci_long, aes(x = loci, y = mean,
   )
 
 ######## STEP 2: Selection strength sweep #########
-sigma_values <- seq(1, 10, length.out=100)
+sigma_values <- seq(1, 10, length.out=10)
 compute_sigma_variance <- function(arch) {
   res <- mclapply(sigma_values, function(s) {
     add_v <- dom_v <- epi_v <- numeric(iter)
@@ -467,7 +468,7 @@ df_time_sum <- df_time %>%
     .groups   = "drop"
   )
 
-pal_b <- c("FALSE" = "blue", "TRUE" = "red")
+pal_b <- c("FALSE" = "darkblue", "TRUE" = "darkred")
 
 p4 <- ggplot(df_time_sum,
        aes(x = time, y = mean_diff,
