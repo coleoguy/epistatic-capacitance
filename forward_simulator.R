@@ -8,6 +8,8 @@ library(tidyr)
 library(ggplot2)
 library(wesanderson)
 
+ncores <- 4
+
 ###### Starting Conditions #########
 N <- 1000 #population
 loci <- 100 # positions on the genome 
@@ -17,7 +19,7 @@ num.imp.loci <- 10
 loci.imp <- sort(sample(1:loci, num.imp.loci))
 opt <- num.imp.loci
 sigma <- num.imp.loci/2
-gen <- 100
+gen <- 2000
 arch <- "axd" # add, axa, axd, dxa, dxd, inc, dec
 sag <- 1.1
 epi_flag <- "alter" # half, alter
@@ -237,13 +239,6 @@ SimulateGenerations <- function(N, loci, mu, baseval, loci.imp, opt, gen, sigma,
 
 ###### ANALYSIS #########
 
-# Andres (Mar 6) - I have removed all the code that was not being used.
-# I also moved the new plotting code in the "NUMBER OF LOCI AND Ve".
-# Also, now the results are in the "results/" folder inside of the github folder.
-# The rest of the code is just the code necessary to make all the plots in the poster.
-# Remeber to load the libraries at the beginning of the code, it is easier than having the libraries all over the code.
-# Let me know if you have any questions! 
-
 #### NUMBER OF LOCI AND Ve ####
 
 iter <- 200
@@ -264,7 +259,7 @@ results_axa <- mclapply(loci_range, function(l) {
   mean_epi <- mean(final_epi_reps)
   sd_epi <- sd(final_epi_reps)
   data.frame(loci = l, mean_epi = mean_epi, sd_epi = sd_epi)
-}, mc.cores = 50)
+}, mc.cores = ncores)
 df_axa <- do.call(rbind, results_axa) %>%
   mutate(
     ymin = pmax(mean_epi - sd_epi, 0),
@@ -286,7 +281,7 @@ results_axd <- mclapply(loci_range, function(l) {
   mean_epi <- mean(final_epi_reps)
   sd_epi <- sd(final_epi_reps)
   data.frame(loci = l, mean_epi = mean_epi, sd_epi = sd_epi)
-}, mc.cores = 50)
+}, mc.cores = ncores)
 df_axd <- do.call(rbind, results_axd) %>%
   mutate(
     ymin = pmax(mean_epi - sd_epi, 0),
@@ -308,7 +303,7 @@ results_dxd <- mclapply(loci_range, function(l) {
   mean_epi <- mean(final_epi_reps)
   sd_epi <- sd(final_epi_reps)
   data.frame(loci = l, mean_epi = mean_epi, sd_epi = sd_epi)
-}, mc.coresdf_dxd = 50)
+}, mc.cores = ncores)
 df_dxd <- do.call(rbind, results_dxd) %>%
   mutate(
     ymin = pmax(mean_epi - sd_epi, 0),
@@ -338,7 +333,7 @@ names(colors) <- c("axa", "axd", "dxd")
 
 ggplot(data_l, aes(x = loci, y = mean_epi, color = group, fill = group)) +
   geom_ribbon(aes(ymin = ymin, ymax = ymax), alpha = 0.2, color = NA) + 
-  geom_line(size = 1.2) +
+  geom_line(linewidth = 1.2) +
   labs(
     x = "Number of Loci",
     y = "Epistatic Variation",
@@ -355,7 +350,7 @@ ggplot(data_l, aes(x = loci, y = mean_epi, color = group, fill = group)) +
     labels = c("Additive by Additive", "Additive by Dominance", "Dominance by Dominance")
   ) +
   scale_y_continuous(limits = c(0, 1)) +
-  scale_x_continuous(breaks = seq(min(data$loci), max(data$loci), length.out = 5)) +
+  scale_x_continuous(breaks = seq(min(data_l$loci), max(data_l$loci), length.out = 5)) +
   theme_minimal() +
   theme(
     panel.border = element_rect(color = "darkgray", fill = NA, size = 1),
@@ -391,7 +386,7 @@ results <- mclapply(sigma_values, function(sigma_now) {
   mean_epi <- mean(final_epi_reps)
   sd_epi <- sd(final_epi_reps)
   data.frame(sigma = sigma_now, mean_epi = mean_epi, sd_epi = sd_epi)
-}, mc.cores = detectCores())
+}, mc.cores = ncores)
 
 results <- readRDS("axa.rds")
 df_summary <- do.call(rbind, results) %>%
@@ -483,6 +478,15 @@ ggplot(df_summary, aes(x = sigma, y = mean_epi)) +
     axis.title = element_text(size = 16),
     axis.text = element_text(size = 14)
   )
+
+
+
+
+
+
+
+
+
 # Read and process each RDS file --------------------------------------------
 
 # For "Additive by Additive" (axa)

@@ -96,6 +96,7 @@ GetFit <- function(obs, opt, sigma) {
 
 Reproduction <- function(pop, N, w, loci) {
   parents <- sample(nrow(pop), 2*N, TRUE, prob = w)
+  unique  <- length(unique(parents))
   reco    <- pmax(pmin(rpois(2*N,10), loci),1)
   haps    <- t(sapply(reco, function(r) rep(sample(1:2,r,TRUE), each=ceiling(loci/r), length.out=loci)))
   mat     <- pop[parents,]
@@ -104,7 +105,8 @@ Reproduction <- function(pop, N, w, loci) {
                            ifelse(haps==1, 0, 1)))
   m_gametes <- gametes[seq(1,2*N,2),]
   p_gametes <- gametes[seq(2,2*N,2),]
-  1 + m_gametes + 2*p_gametes
+  npop <- 1 + m_gametes + 2*p_gametes
+  list(npop, unique)
 }
 
 GetArch <- function(pop, loci.imp, phenos) {
@@ -173,8 +175,9 @@ SimulateGenerations <- function(
     lm_arch[g, ]  <- GetArch(pop, loci.imp, phenos)
     
     # 5) reproduction back up to N
-    w   <- GetFit(phenos, opt_current, sigma)
-    pop <- Reproduction(pop, N, w, loci)
+    w      <- GetFit(phenos, opt_current, sigma)
+    reprod <- Reproduction(pop, N, w, loci)
+    pop    <- reprod[[1]]
     
     if (verbose) message("Gen ", g)
   }
@@ -190,7 +193,8 @@ SimulateGenerations <- function(
     avg_phenos       = mean_pheno,
     lm_arch          = lm_arch,
     diff_vec         = diff_vec,
-    mean_response    = mean_response
+    mean_response    = mean_response,
+    uniq.parents    = reprod[[2]]
   )
 }
 
@@ -254,6 +258,7 @@ df_loci <- bind_rows(lapply(arches, compute_loci_variance))
 write.csv(df_loci, "df_loci.csv", row.names=FALSE)
 
 loci_long <- tidy_variance(df_loci, "loci")
+#loci_long <- readRDS("~/Documents/GitHub/epistatic-capacitance/results/loci")
 
 p1 <- ggplot(loci_long, aes(x = loci, y = mean,
                             color = component, fill = component)) +
@@ -283,6 +288,7 @@ p1 <- ggplot(loci_long, aes(x = loci, y = mean,
   )
 
 ######## STEP 2: Selection strength sweep #########
+iter <- 10
 sigma_values <- seq(1, 10, length.out=10)
 compute_sigma_variance <- function(arch) {
   res <- mclapply(sigma_values, function(s) {
@@ -311,6 +317,7 @@ df_sigma <- bind_rows(lapply(arches, compute_sigma_variance))
 write.csv(df_sigma, "df_sigma.csv", row.names=FALSE)
 
 sigma_long <- tidy_variance(df_sigma, "sigma")
+#sigma_long <- readRDS("~/Documents/GitHub/epistatic-capacitance/results/sigma")
 
 p2 <- ggplot(sigma_long, aes(x = sigma, y = mean,
                              color = component, fill = component)) +
@@ -507,3 +514,99 @@ print(p1)
 print(p2)
 print(p3)
 print(p4)
+
+
+
+
+
+## Additional Scripts
+
+# ---- Modified SimulateGenerations function to track parents ---- #
+SimulateGenerationsTrackParents <- function(
+    N, loci, mu, baseval, loci.imp,
+    opt, gen, sigma, arch, epi_flag
+) {
+  pop             <- GetPopulation(N, loci)
+  opt_current     <- opt
+  parent_counts   <- numeric(gen)
+  
+  for (g in seq_len(gen)) {
+    print(g)
+    # Mutation
+    pop <- MutatePop(pop, mu)
+    
+    # Phenotype and fitness
+    phenos <- GetPheno(pop, loci.imp, baseval, arch, epi_flag)
+    w      <- GetFit(phenos, opt_current, sigma)
+    
+    # Sample parents and count unique ones
+    parents <- sample(nrow(pop), 2*N, TRUE, prob = w)
+    parent_counts[g] <- length(unique(parents))
+    
+    # Reproduction
+    reco    <- pmax(pmin(rpois(2*N,10), loci),1)
+    haps    <- t(sapply(reco, function(r) rep(sample(1:2,r,TRUE), each=ceiling(loci/r), length.out=loci)))
+    mat     <- pop[parents,]
+    gametes <- ifelse(mat==1, 0,
+                      ifelse(mat==4, 1,
+                             ifelse(haps==1, 0, 1)))
+    m_gametes <- gametes[seq(1,2*N,2),]
+    p_gametes <- gametes[seq(2,2*N,2),]
+    pop       <- 1 + m_gametes + 2*p_gametes
+  }
+  
+  parent_counts
+}
+
+# ---- Parameters ---- #
+N           <- 2000
+loci        <- 100
+mu          <- 1e-5
+baseval     <- 0
+num.imp.loci<- 50
+loci.imp    <- sort(sample(1:loci, num.imp.loci))
+opt         <- num.imp.loci
+gen         <- 2000
+epi_flag    <- "alter"
+arches      <- "axa"
+sigma_vals  <- c(1, 2, 4, 6, 8, 10)
+ncores      <- 6
+
+# ---- Run simulations ---- #
+results_list <- mclapply(sigma_vals, function(sigma) {
+  parent_counts <- SimulateGenerationsTrackParents(
+    N, loci, mu, baseval, loci.imp=sort(sample(1:loci, num.imp.loci)),
+    opt, gen, sigma, arch = "dxd", epi_flag
+  )
+  data.frame(
+    Generation   = 1:gen,
+    UniqueParents = parent_counts,
+    Sigma         = factor(sigma)
+  )
+}, mc.cores = ncores)
+
+df_parents <- bind_rows(results_list)
+
+# ---- Plot ---- #
+plotParents <- ggplot(df_parents, aes(x = Generation, y = UniqueParents, color = Sigma)) +
+  geom_line(size = 1.2) +
+  labs(
+    title = "Number of Unique Parents per Generation",
+    x = "Generation",
+    y = "Unique Parents",
+    color = expression(sigma)
+  ) +
+  scale_y_continuous(limits = c(0, 2000)) +
+  scale_x_continuous(limits = c(0, 2000)) +
+  theme_minimal() +
+  theme(
+    plot.title    = element_text(size = 18),
+    axis.title    = element_text(size = 14),
+    axis.text     = element_text(size = 12),
+    legend.title  = element_text(size = 14),
+    legend.text   = element_text(size = 12),
+    panel.border  = element_rect(color = "darkgray", fill = NA, size = 1)
+  )
+
+print(plotParents)
+
