@@ -131,6 +131,7 @@ SimulateGenerations <- function(
   mean_pheno  <- numeric(total_gen)
   opt_history <- numeric(total_gen)
   lm_arch     <- matrix(NA, nrow = total_gen, ncol = 3)
+  uniq.parents <- numeric(total_gen)
   
   for (g in seq_len(total_gen)) {
     # 1) mutation
@@ -160,7 +161,6 @@ SimulateGenerations <- function(
     pop    <- reprod[[1]]
     
     # store vector of unique parents
-    uniq.parents <- c()
     uniq.parents[g] <- reprod[[2]]
     
     if (verbose) message("Gen ", g)
@@ -178,7 +178,7 @@ SimulateGenerations <- function(
     lm_arch          = lm_arch,
     diff_vec         = diff_vec,
     mean_response    = mean_response,
-    uniq.parents    = reprod[[2]]
+    uniq.parents = uniq.parents
   )
   return(sim)
 }
