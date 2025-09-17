@@ -27,7 +27,7 @@ iter <- 200
 
 sim <- SimulateGenerations(N = N, loci = loci, mu = mu, baseval = baseval,
                            loci.imp = loci.imp, opt = opt, gen = gen,
-                           sigma = sigma, arch = arches[1], epi_flag = epi_flag)
+                           sigma = 1, arch = arches[1], epi_flag = epi_flag)
 
 ######## STEP 1: Loci sweep #########
 loci_range <- seq(4, 100, by=2)
