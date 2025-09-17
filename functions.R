@@ -161,7 +161,7 @@ SimulateGenerations <- function(
     
     # store vector of unique parents
     uniq.parents <- c()
-    uniq.parents[gen] <- reprod[[2]]
+    uniq.parents[g] <- reprod[[2]]
     
     if (verbose) message("Gen ", g)
   }
